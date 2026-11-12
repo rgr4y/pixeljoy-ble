@@ -1,0 +1,7 @@
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+# APK + decompiled vendor sources (see tools/fetch_apk.sh) - do not commit
+re/
+*.apk
