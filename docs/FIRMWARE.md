@@ -549,7 +549,11 @@ and a reset would undo it. **Not tested.** A wrong value probably crashes the pa
 * **Remote packet (captured 2026-11-13 on a Linux host, nRF52840 HCI):** non-connectable advert from `11:22:33:44:55:66`
   (fixed address). AD `09` name `"LZ"`, then AD `FF` manufacturer data
   `CC 02 | seq | 66 55 | key | 00 00 | c0 c1`. `seq` increments per transmission. `66 55` is the ID (low address
-  bytes). `c0 c1` matches no common CRC-16, and whether the panel checks it is unknown.
+  bytes). `c0 c1` matches no common CRC-16. **Confirmed: the panel ignores it.** The `'L'`
+  path of the RAM handler (0x9B0..0xAD0; `r4` = report, `r5 = r4+16` = manufacturer AD) reads only the name
+  (`r4+14/15`), the address (`r4+4..9`), `seq` (`r5+4`, used to drop repeats) and `key`/`key2` (`r5+7/8`). The
+  4-byte ID check against the paired remote (`g+0x1BF..`) applies only once a remote is paired (`g+0x1BD ≠ 0`);
+  until then, any `LZ` advert is accepted.
 * **Key → action (`LZ` = remote type 3, table at 0x1E1EB7E, index `key-1`; handlers 0x1E1EC40..0x1E1EEDC).**
   Mostly confirmed. The labels marked ? are guesses from the handler bodies:
 
