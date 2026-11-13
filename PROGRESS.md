@@ -30,3 +30,35 @@
 - Still open in PROTOCOL.md §6: brightness max, `SET_FLIP`, text speed/mode ranges, compressed PNG (`simple_png` still uses zlib level 0), `SHOW_CLOCK` and timers.
 - `HANDOFF.md` sits in the repo root and its "next task" is now done. Delete it, or move the open items into `docs/`?
 - BLE commands need to run outside the Claude sandbox, because CoreBluetooth reports "Bluetooth is unsupported" inside it.
+
+## 2026-11-12: Firmware 1.9.6 disassembly and BLE command map
+
+**Outcome**
+- Found a working pi32v2 disassembler: jvitkauskas/pi32v2-isa (pure Python; its instruction table is checked against JieLi's objdump at `-mcpu=r3`). Kagaimiq's Ghidra module marks pi32v2 "very early stage". Quarkslab's fork needs Ghidra, which is not installed.
+- `app.bin` loads at `0x1E00120`: the br23 `code0` ORIGIN in JieLi's AC63 SDK, confirmed by `IHDR`, `CCHIP`, `1.9.6` and the CRC-table cross-references.
+- Mapped the receive path: BLE write callback `0x1E3454A` → `msg_task` `0x1E24498` (CRC/length check, silent drop) → dispatcher `0x1E22B14` (gates, then `tbh` on cmd). Every case is in `docs/FIRMWARE.md` §3.
+- Answers, from static analysis only:
+  - `a9 01 04 01` is the time request from the `ts_sync` task that `START_SYNC_TIME` starts.
+  - Clock date/time alternation is fixed at 300/100 frames and only the `date` flag enables it.
+  - Clock style 10 has no bounds check: its digits are written about 13 KB past the framebuffer (a RAM corruption bug).
+  - SET_PARTITION has no handler in 1.9.6.
+  - Drawing commands switch to their own mode 7, which clears the screen.
+  - Brightness output is `20 + min(b,100)*4/5`.
+  - LodePNG with a full inflater is present.
+  - The material-pack parser verifies no checksum.
+
+**Changed files**
+- `tools/jl_disasm.py` (new): a raw-image loader around pi32v2-isa that resolves `tbb`/`tbh` jump tables; `--selftest`.
+- `docs/FIRMWARE.md` (new).
+- `docs/PROTOCOL.md` §8: link to FIRMWARE.md.
+
+**Verification**
+- `python3 tools/jl_disasm.py --selftest` passes and `ruff check` is clean.
+- After the refactor, the full disassembly is byte-identical to the pre-refactor run.
+- Every claim in FIRMWARE.md cites an address. None was exercised on the panel, and nothing was sent to it.
+- Caveat: the panel runs 1.8.5 and this is 1.9.6. READ_PROPERTY byte 10 already differs (`0xEA` vs `0x00`).
+
+**Follow-up**
+- CLI brightness accepts 1–255; the firmware clamps output at 100. Tighten to 0–100?
+- Never send SHOW_CLOCK style > 9 (out-of-bounds RAM writes). Validate it in the CLI.
+- PROTOCOL.md §6/§7 still list the `A9` reply, the PNG question and the brightness/flip ranges as open; they can now point at FIRMWARE.md.

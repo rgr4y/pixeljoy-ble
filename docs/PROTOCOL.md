@@ -434,3 +434,8 @@ The key was recovered from keystream over the flash padding: two blocks at `0x49
 `app.bin` is plain code with no second layer. It contains `CCHIP`, `P0AF_V%s`, the
 `AC637N_MX(BLE)` SDK name and a GIF/PNG decoder. The cipher is from
 [kagaimiq's JieLi notes](https://kagaimiq.github.io/jielie/misc/cipher.html).
+
+**Disassembly:** [FIRMWARE.md](FIRMWARE.md) covers the pi32v2 toolchain and the load address
+(`0x1E00120`). It also maps the BLE receive path and command dispatcher (cmd byte → handler → payload →
+reply), and answers the clock, partition, drawing-board, `A9` and value-range questions, all from the
+1.9.6 code.
