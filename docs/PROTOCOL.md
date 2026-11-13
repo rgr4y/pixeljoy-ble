@@ -215,7 +215,7 @@ through §3.3 with the same cmd byte.
 | `0A` | SHOW_TEXT | TLV, §4.2 |
 | `0B` | SHOW_IMG | TLV, §4.3 |
 | `0C` | SHOW_GIF | TLV, §4.3 |
-| `0D` | SHOW_CLOCK | `style 24h date r g b`: style 0–9 (the app's 10 clock styles; `clock_*_gif3216.gif` are only picker previews), `24h` 1 = 24-hour, `date` 1 = show the date, then the digit colour (`ClockActivity.buildClockDisplayData`). The firmware draws the time from its own RTC. Confirmed on P0AF. |
+| `0D` | SHOW_CLOCK | `style 24h date r g b`: style 0–9 (the app's 10 clock styles; `clock_*_gif3216.gif` are only picker previews), `24h` 1 = 24-hour, `date` 1 = show the date, then the digit colour (`ClockActivity.buildClockDisplayData`). The firmware draws the time from its own RTC. Confirmed on P0AF: style 2 with 12 h and date on shows the real time in 12-hour format, plays the style's animation along the bottom (as in its preview GIF), and swaps to the date for about 5 s every 10–15 s (rough, by eye). The payload has no field for the date timing. |
 | `0E` | STOPWATCH | `1`..`5` (start/pause/reset/…, exact mapping unverified) |
 | `0F` | PLAY_CAROUSEL | repeated `name_len name type play_cnt [FF switch_anim]` |
 | `10` | READ_PROPERTY | `01` |
