@@ -407,7 +407,7 @@ On 2026-11-12, for P0AF with `otaNumber` 1.0.0:
 
 | Class | Latest | Size | MD5 | Contents |
 |---|---|---|---|---|
-| 1 firmware | 1.9.6 (panel runs 1.8.5) | 302 KB | `e5731d33…` | encrypted or scrambled (no readable strings); typical for JieLi |
+| 1 firmware | 1.9.6 (panel runs 1.8.5) | 302 KB | `e5731d33…` | JieLi ENC with the fixed key `0xB107`; decrypt with `tools/jl_fw_decrypt.py` |
 | 2 material | 1.2.1 | 822 KB | `2cb29106…` | plain container of 73 GIF89a files, see below |
 | 3 comms | none | – | – | `updateEnable` 2 |
 
@@ -425,3 +425,12 @@ The files are kept in `re/firmware/` (git-ignored). Nothing has been flashed.
 So the clock animations are swappable GIFs, but the only way to change them is a
 material OTA. That needs the rest of the container format (checksums?) and the BLE OTA
 transfer. A bad flash may brick the panel.
+
+**Firmware encryption:** JieLi's ENC stream cipher. A CRC16-CCITT (0x1021) shift register
+is XORed onto the data, low byte first, and reset every 32 bytes to `0xB107 ^ (offset >> 2)`.
+The key was recovered from keystream over the flash padding: two blocks at `0x498c0` and
+`0x49900` gave the same base. Decrypted, the image has a JieLi file table:
+`app_area_head`, `app.bin` (0x120, 0x497c4 bytes), `cfg_tool.bin`, `VM`, `PRCT`, `BTIF`.
+`app.bin` is plain code with no second layer. It contains `CCHIP`, `P0AF_V%s`, the
+`AC637N_MX(BLE)` SDK name and a GIF/PNG decoder. The cipher is from
+[kagaimiq's JieLi notes](https://kagaimiq.github.io/jielie/misc/cipher.html).
