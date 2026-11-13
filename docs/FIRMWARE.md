@@ -220,8 +220,10 @@ renders only every second display-loop pass (`b[0xCE3A]` counter, 0x1E1FDB4). Th
 (0x1E290EA..0x1E292E0) runs the callback, then `os_time_dly(1)`, and logs "[FRAME]frame rate: %d fps" every
 100 passes. So the period depends on the frame rate, not wall-clock time.
 
-**Guess:** the hardware showed about 5 s of date every 10–15 s. That fits about 40–50 ms per clock frame
-(about 20–25 ms per display pass). The UART log line "[FRAME]frame rate" would pin it down.
+**Measured on the 1.8.5 panel (UART log, 2026-11-13):** `[Info]: [FRAME]frame rate: 50 fps.` That is 50
+display passes/s, so `clock_tick` draws 25 clock frames/s. With the 1.9.6 counters this gives about **12 s
+of time, then 4 s of date**, and 10 s before the first switch. That matches the 5 s of date every 10–15 s
+seen by eye. Assumption: 1.8.5 uses the same counters, which hasn't been checked.
 
 **Styles → GIFs: confirmed.** `clock_tick` (0x1E1FDF4 and 0x1E20610):
 
@@ -413,7 +415,6 @@ Untraced: what `dw_update` does after that (§6).
   1.9.6 (splice, horizontalReverse, carouselSwitchAnim, textBgColor, textAlign) but was `0x00` on the 1.8.5
   panel. Byte 11 is `0x01` (effectText). 1.9.6 builds 39 reply bytes; 40 were captured on 1.8.5. Bytes 8 bits 4–7
   (remote, noRespA4, multiScreen, 600Txt) are hard-coded on.
-* The display frame rate, which sets the clock alternation and text speed in seconds.
 * Where flip and horizontal-reverse are applied in rendering.
 * Commands not in the app: `06`, `17`, `1C`, `28`, `2A`, `43`, `7A` (handshake bypass), `F1` (challenge seed).
 * What `[g+0xA0]` is (the handshake challenge seed).
@@ -461,6 +462,6 @@ Guess: none of this matters to a 5 V panel with no battery or audio. Editing it 
 | U14 | LQFP48 JieLi SoC (AC6951C per the model table) | 24 MHz crystal Y2. The code (internal flash) is only reachable through the chip |
 | U15 | SOP-8 SPI NOR, `…25L64…` (64 Mbit) | **Guess:** holds the file system (`/set`, `/mat`, `/diy`, uploads, material pack). READ_EXTERNAL_FLASH_SPACE reports 0x680000 bytes |
 | Pads `VCC DM DP GND` | Chip USB | The USB-C connector looks power-only (5 V/GND), so these are the way into the mask-ROM USB loader (§ OTA / jl-uboot-tool) |
-| Pads `5V RX TX GND` | UART | **Guess:** the SDK log UART that prints the `[Info]: …` strings seen in the code. Logic is 3.3 V; leave the `5V` pad unconnected |
+| Pads `5V RX TX GND` | UART | **Confirmed on 1.8.5:** the `TX` pad carries the SDK debug log at **1,000,000 baud 8N1**, 3.3 V. Seen: `[CLOCK]free physic memory size:67456` and `[CLOCK]<dow> hh:m:s` once a second, and `[FRAME]frame rate: 50 fps.` every 100 frames. Leave the `5V` pad unconnected |
 | U4/U8/U12, U5/U9/U13 (TSSOP-24), U16/U17 (SOP-16) | LED column drivers and row-scan switches | Guess from the layout. Part numbers not read |
 | U2, D1, R10/R11, C49 | 3.3 V LDO, protection, likely USB-C CC resistors | Guess |
