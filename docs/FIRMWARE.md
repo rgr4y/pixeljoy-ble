@@ -465,3 +465,36 @@ Guess: none of this matters to a 5 V panel with no battery or audio. Editing it 
 | Pads `5V RX TX GND` | UART | **Confirmed on 1.8.5:** the `TX` pad carries the SDK debug log at **1,000,000 baud 8N1**, 3.3 V. Seen: `[CLOCK]free physic memory size:67456` and `[CLOCK]<dow> hh:m:s` once a second, and `[FRAME]frame rate: 50 fps.` every 100 frames. Leave the `5V` pad unconnected |
 | U4/U8/U12, U5/U9/U13 (TSSOP-24), U16/U17 (SOP-16) | LED column drivers and row-scan switches | Guess from the layout. Part numbers not read |
 | U2, D1, R10/R11, C49 | 3.3 V LDO, protection, likely USB-C CC resistors | Guess |
+
+---
+
+## 8. Boot log (1.8.5 panel, UART `TX` pad, 2026-11-13)
+
+Captured by Rob. Parts of it are garbled by noise or a baud mismatch, but most lines read clearly. **Observed:**
+
+| Line | Meaning |
+|---|---|
+| `setup_arch Dec 24 2025 17:36:17`, `[APP]Dec 24 2025,17:36:25` | Build date of the firmware the panel runs (1.8.5) |
+| `chip id 3`, `Reset Source: 0x1`, `VDDIO POR` | Normal power-on reset |
+| `BTCTRLER-20241231-$d83b33538`, `UPDATE-20241231-$f6f07d7` | JieLi BT controller and update library versions |
+| `[SDFILE]VM size: 0x2000 … 0xfc000`, `disk capacity 1024 KB` | 1 MB internal flash, VM (settings) at 0xFC000, as in the file table |
+| `last file addr:3020 3efcc`, `end addr:43000` | Guess: the 1.8.5 app is about 0x3EFCC bytes, smaller than 1.9.6's 0x497C4 |
+| `D:\ProjectGit\D53601\apps\spp_and_le\board\br23\board_ac635n_demo.c` | **The vendor app is JieLi's AC63 SDK `spp_and_le` example, `multi_conn` variant, on the stock `ac635n_demo` board file.** That is the same SDK used in §1 |
+| `>> v220,2022-11-23` | SDK release v2.2.0 |
+| `[USER_CFG]bt name config:AC695X_1`, `rf config:10,6`, `mac: 71 B6 96 F6 8D E3` | The stock cfg_tool values (§7.1) are actually loaded; the classic MAC is per unit |
+| `[FLASH]norflash init`, `new partition nor flash 2`, `[EXT_FLASH]mount … successfully` | External SPI flash U15 mounted as the file system |
+| `[EXT_FLASH]full path: …mat, rct, lck, txt, img, dyn, tvw, car, sta, tz, sch, btr` | Directories on the external flash (material, text, images, GIFs, carousel, settings, time zone, schedules…) |
+| `rtc simulate init: 2020-2-28 23:59:40` | Software RTC with no battery, so the time is lost on power-off until the app syncs it |
+| `[DEVICE_INIT]old sys clk: 24000000`, then `new sys clk …`, `clock source … 60000000` | The CPU clock is raised after boot |
+| `[GATT_SERVER]…`, `[GATT_CLIENT]… scan`, `[MUL-PER]`/`[MUL-CEN]` | Runs as BLE peripheral **and** central (scanning). This explains the `A7` scan-result messages in msg_task |
+| `[FRAME]frame rate: 50 fps.` | §5a |
+
+**Baud.** The text before `new sys clk` is mostly clean. After it, the garbling gets much worse, and Rob found
+1,030,000 baud gave the best result. **Guess:** the debug UART's divider is not recomputed exactly after the
+clock change, so the log after boot runs about 3 % fast. Two other possibilities have not been ruled out: the
+CP2102 rounding the requested rate, or the bad ground. To tell them apart, capture the boot at exactly
+1,000,000 and see whether only the post-switch part degrades.
+
+**What this means for custom firmware:** `fw-AC63_BT_SDK` → `apps/spp_and_le` with `CONFIG_APP_MULTI` on the
+br23 `ac635n_demo` board is the vendor's starting point. A rebuild from that SDK should boot on this board.
+Only the vendor's panel app (LED driver, protocol, file system) would be missing, and the disassembly covers it.
