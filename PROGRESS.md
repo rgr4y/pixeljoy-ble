@@ -89,3 +89,37 @@
 **Follow-up**
 - Solder a header or use pogo pins on `TX`/`GND` for a stable log. Then capture the boot log.
 - Before any custom flash: trace `dw_update`, then set up USB recovery (DM/DP + USB_KEY) or a SOIC-8 dump of U15.
+
+## 2026-11-13: LZ remote decoded; Home Assistant integration (branch `ha-integration`)
+
+**Outcome**
+- Remote: a 2.4 GHz "BLE" remote at `11:22:33:44:55:66`.
+  - Captured on a Linux host with the nRF52840 (Zephyr HCI, hci1).
+  - Packet: name `LZ`, then manufacturer data `CC 02 | seq | id(2) | key | 00 00 | chk(2)`.
+  - The firmware maps key codes to actions (table at 0x1E1EB7E).
+  - The panel ignores the trailing check bytes. Any `LZ` advert is accepted until a remote is paired.
+- New `custom_components/pixeljoy`, adapted from XTimt/LEDDMX (MIT):
+  - Bluetooth discovery (40 scan UUIDs plus a model-name check)
+  - light (on/off, brightness 1–100 %)
+  - services: show_text, show_clock (1–10, bounded), show_image, show_gif, sync_time
+  - an event entity for remote presses (passive adverts, repeats dropped by seq)
+  - BLE through HA's stack via `bleak-retry-connector`, disconnecting after 60 s idle
+- Library: `protocol.parse_remote_advert` and `REMOTE_KEYS`; a `PixelJoy._open()` hook so HA supplies the connection.
+
+**Changed files**
+- `pixeljoy/protocol.py`, `pixeljoy/client.py`, `tests/test_protocol.py`
+- `custom_components/pixeljoy/*` (new)
+- `tests_ha/*` (new)
+- `README.md`, `docs/FIRMWARE.md`, `docs/PROTOCOL.md`
+
+**Verification**
+- `pytest tests` passes (25).
+- `pytest tests_ha` passes (5) against HA 2026.2.3 via pytest-homeassistant-custom-component, with BLE mocked. It covers discovery, rejecting a non-panel name, brightness mapping, the clock style bound, and remote events firing once per seq.
+- `ruff` is clean.
+- The HA tests caught one real bug: the remote callback needs `connectable=False`.
+- Not run on a live HA instance or against the panel.
+
+**Follow-up**
+- Deploy to HA (<ha-host>) and test against the panel.
+- `custom_components/pixeljoy/pixeljoy` is a symlink: fine for an rsync `-L` install, but it breaks a HACS install.
+- Check on hardware whether one press sends several seqs. If it does, remote events need a time debounce.
