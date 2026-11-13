@@ -21,7 +21,9 @@
 - The 100/600 limit was checked in the decompiled app (`AddOrEditTextActivity`: `isSupport600txt() ? 600 : 100`).
 - 23 unit tests pass.
 - `text --rainbow 1` shows rainbow text on the panel (Rob confirmed).
-- Not checked: `gif` and `--fit cover`.
+- `image --fit cover`: 96×32 R/G/B test image shows 8 px red, 16 px green, 8 px blue (Rob confirmed).
+- Not checked: `gif`.
+- From the desktop app, Claude's Bash tool gets SIGABRT on any BLE command (Bluetooth permission for the launching process?). The same commands work from Rob's terminal and via `!`.
 
 **Follow-up**
 - Unknown reply `a9 01 04 01` after the time sync (noted in PROTOCOL.md §7).
