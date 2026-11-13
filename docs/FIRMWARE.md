@@ -462,7 +462,7 @@ Guess: none of this matters to a 5 V panel with no battery or audio. Editing it 
 | U14 | LQFP48 JieLi SoC (AC6951C per the model table) | 24 MHz crystal Y2. The code (internal flash) is only reachable through the chip |
 | U15 | SOP-8 SPI NOR, `…25L64…` (64 Mbit) | **Guess:** holds the file system (`/set`, `/mat`, `/diy`, uploads, material pack). READ_EXTERNAL_FLASH_SPACE reports 0x680000 bytes |
 | Pads `VCC DM DP GND` | Chip USB | The USB-C connector looks power-only (5 V/GND), so these are the way into the mask-ROM USB loader (§ OTA / jl-uboot-tool) |
-| Pads `5V RX TX GND` | UART | **Confirmed on 1.8.5:** the `TX` pad carries the SDK debug log at **1,000,000 baud 8N1**, 3.3 V. Seen: `[CLOCK]free physic memory size:67456` and `[CLOCK]<dow> hh:m:s` once a second, and `[FRAME]frame rate: 50 fps.` every 100 frames. Leave the `5V` pad unconnected |
+| Pads `5V RX TX GND` | UART | **Confirmed on 1.8.5:** the `TX` pad carries the SDK debug log at **1,000,000 baud 8N1**, 3.3 V. Seen: `[CLOCK]free physic memory size:67456` and `[CLOCK]<dow> hh:m:s` once a second, and `[FRAME]frame rate: 50 fps.` every 100 frames. Leave the `5V` pad unconnected. **On Rob's unit the `TX` pad was torn off on 2026-11-13**; to get the log back, solder to the trace or via it fed, after scraping off the solder mask |
 | U4/U8/U12, U5/U9/U13 (TSSOP-24), U16/U17 (SOP-16) | LED column drivers and row-scan switches | Guess from the layout. Part numbers not read |
 | U2, D1, R10/R11, C49 | 3.3 V LDO, protection, likely USB-C CC resistors | Guess |
 
