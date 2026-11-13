@@ -69,3 +69,23 @@
 **Changed files:** `pixeljoy/protocol.py`, `tests/test_protocol.py`, `docs/FIRMWARE.md`, `PROGRESS.md`
 
 **Verification:** pytest and ruff pass. Not run on the panel.
+
+## 2026-11-13: OTA format, cfg_tool.bin, board pads, UART log
+
+**Outcome**
+- OTA transfer traced: the app's `OTAManager` and firmware msg_task use a vendor `B1`/`B2`/`B3` protocol (material `B4`–`B6`). The sender supplies both checks (standard CRC-32 and a byte sum). There is no signature. All 4 CRC16s inside the image reproduce, so a patched image can be built. Still untraced: what JieLi's `dw_update` does after the check.
+- `cfg_tool.bin` is byte-identical to JieLi's stock SDK default (earbud template). Nothing in it is vendor-specific.
+- Board photos: `VCC DM DP GND` pads (USB, the route to the mask-ROM loader), `5V RX TX GND` pads (UART), U15 64 Mbit SPI NOR (probably the file system).
+- UART confirmed on the 1.8.5 panel: the TX pad carries the debug log at 1,000,000 baud. It reports `frame rate: 50 fps`, which gives about 12 s of time and 4 s of date on the clock.
+
+**Changed files**
+- `docs/FIRMWARE.md`: OTA protocol, §7 cfg_tool and board, UART and frame rate.
+
+**Verification**
+- CRCs were recomputed and match the image.
+- The UART log was read live, but the connection is flaky. The garbled bytes were partly caused by two readers on the port.
+- Nothing was flashed or sent to the panel.
+
+**Follow-up**
+- Solder a header or use pogo pins on `TX`/`GND` for a stable log. Then capture the boot log.
+- Before any custom flash: trace `dw_update`, then set up USB recovery (DM/DP + USB_KEY) or a SOIC-8 dump of U15.
