@@ -48,7 +48,7 @@ async def panel_entry(hass, mock_bluetooth):
                             data={CONF_ADDRESS: PANEL, CONF_MODEL: "P0AF_XXX"})
     entry.add_to_hass(hass)
     client = MagicMock()
-    for m in ("power", "brightness", "show_clock", "show_text", "sync_time"):
+    for m in ("power", "brightness", "show_clock", "show_text", "sync_time", "resume_carousel", "show_gif"):
         setattr(client, m, AsyncMock())
 
     async def run(self, fn):
@@ -100,3 +100,20 @@ async def test_remote_press_fires_event_once_per_seq(hass, panel_entry):
     press(0x2F, 0x04)
     await hass.async_block_till_done()
     assert hass.states.get("event.p0af_a1b2_remote").attributes["event_type"] == "brightness_up"
+
+
+async def test_buttons(hass, panel_entry, tmp_path):
+    await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_clock"}, blocking=True)
+    panel_entry.show_clock.assert_awaited_with(0)
+    await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_carousel"}, blocking=True)
+    panel_entry.resume_carousel.assert_awaited_once()
+
+    with pytest.raises(Exception, match="rem_3.gif is missing"):
+        await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_sign_warning"}, blocking=True)
+
+    signs = tmp_path / "pixeljoy" / "signs"
+    signs.mkdir(parents=True)
+    (signs / "rem_3.gif").write_bytes(b"GIF89a-warn")
+    hass.config.config_dir = str(tmp_path)
+    await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_sign_warning"}, blocking=True)
+    panel_entry.show_gif.assert_awaited_with(b"GIF89a-warn", 600)

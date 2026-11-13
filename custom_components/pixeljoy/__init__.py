@@ -14,7 +14,7 @@ from homeassistant.exceptions import ConfigEntryError
 from .panel import PixelJoyPanel
 from .pixeljoy import protocol as P
 
-PLATFORMS = [Platform.LIGHT, Platform.EVENT]
+PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.LIGHT]
 
 PixelJoyConfigEntry = ConfigEntry[PixelJoyPanel]
 

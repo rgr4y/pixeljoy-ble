@@ -273,6 +273,25 @@ class PixelJoy:
         else:
             await self._write(frames[0])
 
+    async def read_carousel(self) -> list[P.CarouselItem]:
+        """The panel's carousel list (replies: "start", item frames, "end")."""
+        await self._write(P.frame(P.Cmd.READ_CAROUSEL_LIST, b"\x01"))
+        items: list[P.CarouselItem] = []
+        while True:
+            got = P.parse_carousel_list((await self._expect(cmd=P.Cmd.READ_CAROUSEL_LIST)).payload)
+            if got == "end":
+                return items
+            if isinstance(got, list):
+                items += got
+
+    async def resume_carousel(self) -> list[P.CarouselItem]:
+        """Play the stored carousel. PLAY_CAROUSEL replaces the list, so read it and send it back."""
+        items = await self.read_carousel()
+        if not items:
+            raise PixelJoyError("the panel's carousel is empty; add items in the app first")
+        await self._send_cmd(P.Cmd.PLAY_CAROUSEL, P.play_carousel_payload(items))
+        return items
+
     async def show_png(self, png: bytes, name: str | None = None) -> None:
         name = name or P.file_name("img")
         await self.upload(name, png)

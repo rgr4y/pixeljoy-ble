@@ -19,6 +19,32 @@
     }
   },
   "entity": {
+    "button": {
+      "clock": {
+        "name": "Clock"
+      },
+      "carousel": {
+        "name": "Carousel"
+      },
+      "sign_left": {
+        "name": "Sign: left arrow"
+      },
+      "sign_no_high_beam": {
+        "name": "Sign: no high beams"
+      },
+      "sign_right": {
+        "name": "Sign: right arrow"
+      },
+      "sign_warning": {
+        "name": "Sign: warning"
+      },
+      "sign_baby": {
+        "name": "Sign: baby on board"
+      },
+      "sign_no_horn": {
+        "name": "Sign: no horn"
+      }
+    },
     "event": {
       "remote": {
         "name": "Remote",

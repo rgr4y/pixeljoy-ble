@@ -696,6 +696,42 @@ def match_model(adv_name: str | None, service_uuids: Iterable[str], models: list
     return None
 
 
+
+# ---------------------------------------------------------------------------
+# Carousel (READ_CAROUSEL_LIST 1F / PLAY_CAROUSEL 0F)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CarouselItem:
+    name: str
+    type: int      # device file type as the panel reports it (sent back unchanged)
+    play_cnt: int
+
+
+def parse_carousel_list(payload: bytes) -> list[CarouselItem] | str:
+    """One A1 1F reply: "start" / "end" markers (plus one trailing byte), or ``[len name type cnt]...``."""
+    if payload[:-1] in (b"start", b"end"):
+        return payload[:-1].decode()
+    items, i = [], 0
+    while i < len(payload):
+        n = payload[i]
+        if i + 1 + n + 2 > len(payload):
+            break
+        name = payload[i + 1 : i + 1 + n].decode("utf-8", "replace")
+        items.append(CarouselItem(name, payload[i + 1 + n], payload[i + 2 + n]))
+        i += n + 3
+    return items
+
+
+def play_carousel_payload(items: Sequence[CarouselItem]) -> bytes:
+    """``[len name type cnt]...`` (DeviceCommand.playCarousel); switch animation left at the default."""
+    out = bytearray()
+    for it in items:
+        name = it.name.encode()
+        out += bytes([len(name)]) + name + bytes([it.type & 0xFF, it.play_cnt & 0xFF])
+    return bytes(out)
+
 # ---------------------------------------------------------------------------
 # "LZ" 2.4 GHz remote (BLE adverts, no connection) -- docs/FIRMWARE.md §9
 # ---------------------------------------------------------------------------

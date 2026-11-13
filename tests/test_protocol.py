@@ -240,3 +240,11 @@ def test_parse_remote_advert():
     assert P.parse_remote_advert("P0AF_A1B2", mfr, "11:22:33:44:55:66") is None
     assert P.parse_remote_advert("LZ", {0x004C: b"\x00" * 8}, "11:22:33:44:55:66") is None
     assert P.RemotePress("x", 0, 0x7F).action == "key_7f"
+
+
+def test_carousel_list_roundtrip():
+    assert P.parse_carousel_list(b"start\x00") == "start" and P.parse_carousel_list(b"end\x00") == "end"
+    items = [P.CarouselItem("dyn123456", 3, 1), P.CarouselItem("txt654321", 1, 2)]
+    payload = P.play_carousel_payload(items)
+    assert payload == b"\x09dyn123456\x03\x01\x09txt654321\x01\x02"
+    assert P.parse_carousel_list(payload) == items
