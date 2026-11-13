@@ -505,3 +505,44 @@ CP2102 rounding the requested rate, or the bad ground. To tell them apart, captu
 **What this means for custom firmware:** `fw-AC63_BT_SDK` → `apps/spp_and_le` with `CONFIG_APP_MULTI` on the
 br23 `ac635n_demo` board is the vendor's starting point. A rebuild from that SDK should boot on this board.
 Only the vendor's panel app (LED driver, protocol, file system) would be missing, and the disassembly covers it.
+
+---
+
+## 9. Standouts
+
+**Security: there is effectively none.**
+
+* The handshake is obfuscation, not authentication: XOR with two constants, and `F1` returns the seed.
+* `7A 01` turns the handshake gate off entirely.
+* The device-lock password is compared in plaintext.
+* `AA` (time reply) and `A0 51` (spectrum) skip the CRC check.
+* OTA carries no signature (§5f).
+* Anyone in BLE range can repaint the panel, format its file system (`8E 02`) or push firmware.
+
+**Memory-safety bugs (code-derived):**
+
+* SHOW_CLOCK style ≥ 10 writes out of bounds (§5a).
+* The `tim` array in the material pack is unbounded (§5f).
+* SHOW_TEXT tag 0B copies its name into a 20-byte field with no length check.
+* DRAW_PIXEL and FILL_RECT do no bounds check.
+
+**Guess: DRAW_PIXEL is a RAM write primitive.** `fb[(y*32 + x)*4] = 0x00RRGGBB` with x, y in 0..255 reaches
+`0xAF18..0x13294`. That range includes the main state struct `g` (0xCE70). The mode-7 draw callback pointer
+is at `g+188 = 0xCF2C`, which is pixel (x=5, y=64). `mode_switch` installs the callback before the pixel is
+written, so one `04 rr gg bb 05 40` would replace it with any 24-bit address. The next display pass would
+then call that address. Flash code (`0x01Exxxxx`) cannot be targeted this way (top byte forced to 0), but RAM
+(`0x0000xxxx`) can, including the framebuffer itself. This could run code from RAM without touching flash,
+and a reset would undo it. **Not tested.** A wrong value probably crashes the panel into a reset.
+
+**Hidden features in strings:**
+
+* `CT_*`: the effect-text engine (`29`/`2A`). It stores text in flash slots with generation numbers and
+  CRCs, so it survives reboot. It uses `cbg` background GIFs and border PNGs from the material pack.
+* `remoter accept/reject`: the panel scans as a BLE central to pair a BLE remote. That is separate from the
+  IR remote (`48`/`49`).
+* `TEST_BOX`: JieLi's factory test-box hook (boot log: `testbox msg handle reg`).
+* `[LIGHT_STATE]Starting factory reset`.
+* The external flash file system is littlefs (its debug strings are present).
+
+**Shipping state:** the stock SDK example, with debug logging left on at 1 Mbaud, stock cfg_tool values,
+and the `multi_conn` demo banner still printed at boot.
