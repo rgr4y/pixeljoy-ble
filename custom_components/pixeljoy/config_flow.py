@@ -13,8 +13,8 @@ from .const import DOMAIN
 from .pixeljoy import protocol as P
 
 
-def _model(info: BluetoothServiceInfoBleak) -> P.Model | None:
-    return P.match_model(info.name, info.service_uuids)
+def _model(info: BluetoothServiceInfoBleak, models: list[P.Model]) -> P.Model | None:
+    return P.match_model(info.name, info.service_uuids, models)
 
 
 class PixelJoyConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -25,12 +25,14 @@ class PixelJoyConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._discovery: BluetoothServiceInfoBleak | None = None
         self._found: dict[str, BluetoothServiceInfoBleak] = {}
+        self._models: list[P.Model] = []
 
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> ConfigFlowResult:
         """A panel was seen by an adapter or proxy."""
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
-        if _model(discovery_info) is None:  # manifest matches on scan UUID only; confirm name too
+        self._models = await self.hass.async_add_executor_job(P.load_models)
+        if _model(discovery_info, self._models) is None:  # manifest matches on scan UUID only; confirm name too
             return self.async_abort(reason="not_supported")
         self._discovery = discovery_info
         self.context["title_placeholders"] = {"name": discovery_info.name}
@@ -41,7 +43,7 @@ class PixelJoyConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             return self.async_create_entry(
                 title=self._discovery.name,
-                data={CONF_ADDRESS: self._discovery.address, CONF_MODEL: _model(self._discovery).name},
+                data={CONF_ADDRESS: self._discovery.address, CONF_MODEL: _model(self._discovery, self._models).name},
             )
         self._set_confirm_only()
         return self.async_show_form(step_id="bluetooth_confirm", description_placeholders={"name": self._discovery.name})
@@ -53,11 +55,12 @@ class PixelJoyConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
             info = self._found[address]
-            return self.async_create_entry(title=info.name, data={CONF_ADDRESS: address, CONF_MODEL: _model(info).name})
+            return self.async_create_entry(title=info.name, data={CONF_ADDRESS: address, CONF_MODEL: _model(info, self._models).name})
 
+        self._models = await self.hass.async_add_executor_job(P.load_models)
         configured = self._async_current_ids(include_ignore=False)
         for info in async_discovered_service_info(self.hass, connectable=True):
-            if info.address not in configured and _model(info):
+            if info.address not in configured and _model(info, self._models):
                 self._found[info.address] = info
         if not self._found:
             return self.async_abort(reason="no_devices_found")

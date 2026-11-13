@@ -7,6 +7,7 @@ in the decompiled vendor app.
 from __future__ import annotations
 
 import datetime as _dt
+import functools
 import json
 import random
 import struct
@@ -672,7 +673,9 @@ class Model:
     dual_chips: int
 
 
+@functools.cache
 def load_models() -> list[Model]:
+    """Model table (cached; first call reads devices.json, so hosts with an event loop call it in a worker)."""
     data = json.loads(resources.files(__package__).joinpath("devices.json").read_text())
     return [
         Model(e["name"], e["pid"], e["width"], e["height"], e["chip"], uuid16(e["scan_uuid16"]),
