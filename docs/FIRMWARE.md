@@ -562,15 +562,18 @@ and a reset would undo it. **Not tested.** A wrong value probably crashes the pa
   | 01 | power / pause? (depends on mode, 0x1E1ED5A) | 0B | auto-off timer 8 h toggle? (`[g+0x304] = 28800`) |
   | 02 | carousel (mode 3) | 0C | auto-off timer 2 h toggle? (`[g+0x30C] = 7200`) |
   | 03 | **off** (confirmed on the remote) | 0D, 0E, 0F | **buttons 1, 2, 3** (confirmed labels); all three go to the same handler 0x1E1EDCC (sets remote-state flags), so the action is decided later from the key byte |
-  | 04 | brightness +10 (max 100) | 10 | preset animation 1 (GIF mode, table `g+0x13B0`) |
-  | 05 | flip toggle 0↔1 | 11 | preset 2 (`g+0x13BC`) |
-  | 06 | **right arrow** (confirmed); sets text mode 2 = scroll right | 12 | preset 3 (`g+0x13C8`) |
-  | 07 | brightness −10 (min 10) | 13 | preset 4 (`g+0x13D4`) |
-  | 08 | clock (mode 4) | 14 | preset 5 (`g+0x13E0`) |
-  | 09 | **left arrow** (confirmed); sets text mode 1 = scroll left | 15 | preset 6 (`g+0x13EC`) |
+  | 04 | brightness +10 (max 100) | 10 | **left arrow** car sign (confirmed), preset 1 |
+  | 05 | flip toggle 0↔1 | 11 | **no high beams** car sign (confirmed), preset 2 |
+  | 06 | **right arrow** (confirmed); sets text mode 2 = scroll right | 12 | **right arrow** car sign (confirmed), preset 3 |
+  | 07 | brightness −10 (min 10) | 13 | **warning triangle** car sign (confirmed), preset 4 |
+  | 08 | clock (mode 4) | 14 | **baby on board** car sign (confirmed), preset 5 |
+  | 09 | **left arrow** (confirmed); sets text mode 1 = scroll left | 15 | **no horn** car sign (confirmed), preset 6 |
   | 0A | **12 h auto-off timer toggle** (confirmed); flag `g+0x300` | | |
 
-  Keys seen in the capture: `01 04 05 06 07 09 0D 0E`. The presets are `mar` material entries (car-window GIFs).
+  Keys seen in the capture: `01 04 05 06 07 09 0D 0E`. **The six car signs are the first six `rem` records of the
+  material pack.** Each handler reads `[g+0x13B0 + 12n]` (offset) and `h[g+0x13B4 + 12n]` (length), which is
+  `rem[n]` in the `g+0x13AC` table filled by the pack parser (§5f). Material 1.2.1 has 9 `rem` records. The app
+  cannot change them. Only a material OTA (`B4`/`B5`/`B6`) can, or HA can react to the `sign_*` event with its own content.
   Other remote types (`'U'` = type 4) use the second table at 0x1E1EC0E.
 * `SET_REMOTE` (`48`): `48 01 x m` sets `g+0x5C9 = (m == 1 ? 0 : 1)` (remote enable); `48 02` forgets the paired
   remote (clears `g+0x1BD..0x1C5`). `READ_REMOTE` (`49`) returns `[enabled, paired, id… (6 B)]`.
