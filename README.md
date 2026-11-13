@@ -6,8 +6,10 @@ sold for car windows and shop signs, controlled by the *PixelJoy* app
 (Shenzhen Wanshun Zhilian Technology) and a small IR remote. They are built
 on a JieLi AC695x/AC6951C BLE SoC.
 
-**Status: protocol extracted from the Android app by static analysis; not
-yet run against real hardware.** See [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
+**Status: protocol extracted from the Android app by static analysis and
+confirmed on a P0AF (32×16, firmware 1.8.5) panel: handshake, properties,
+clock sync, text, image.** See [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
+CLI reference: [`docs/USAGE.md`](docs/USAGE.md).
 
 ## Prior art
 
@@ -33,8 +35,10 @@ python -m pixeljoy power off
 python -m pixeljoy brightness 50
 python -m pixeljoy -v text "HELLO" --color 00ff88
 python -m pixeljoy -v image cat.png   # resized to the panel, uploaded as PNG
-python -m pixeljoy raw 11 01          # send one raw A0 frame (cmd 0x11, payload 01)
+python -m pixeljoy raw 41 01          # send one raw A0 frame, print replies
 ```
+
+Full CLI reference, exit codes and troubleshooting: [`docs/USAGE.md`](docs/USAGE.md).
 
 `-v` logs every TX/RX frame in hex. Please capture that output on first
 contact with a panel.
@@ -43,6 +47,7 @@ contact with a panel.
 
 | Path | What |
 |---|---|
+| `docs/USAGE.md` | CLI reference, troubleshooting, Python API example |
 | `docs/PROTOCOL.md` | the spec, with references to the vendor classes it came from |
 | `pixeljoy/protocol.py` | pure encoders/decoders (framing, CRC, handshake, multi-pack, text/PNG, replies) |
 | `pixeljoy/client.py` | async `bleak` client: handshake, flow control, upload/show |
