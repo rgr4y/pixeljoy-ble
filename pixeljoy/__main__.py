@@ -127,8 +127,7 @@ async def main_async(args) -> None:
 
             await pj.show_png(image_to_png(args.path, f.model.width, f.model.height, args.fit))
         elif args.cmd == "gif":
-            with open(args.path, "rb") as fh:
-                await pj.show_gif(fh.read(), args.speed)
+            await pj.show_gif(args.path.read(), args.speed)
         elif args.cmd == "raw":
             await pj._write(P.frame(args.cmd_byte, b"".join(args.payload)))
             for r in await pj.drain(args.wait):
@@ -213,14 +212,14 @@ def build_parser() -> argparse.ArgumentParser:
     s = cmd("image", "show a still image",
             "Resize an image to the panel, upload it as PNG and show it.",
             ["image cat.png", "image logo.png --fit contain"])
-    s.add_argument("path")
+    s.add_argument("path", type=argparse.FileType("rb"), help="any image Pillow can open")
     s.add_argument("--fit", choices=["stretch", "contain", "cover"], default="stretch",
                    help="stretch: ignore aspect; contain: letterbox in black; cover: crop to fill (default: stretch)")
 
     s = cmd("gif", "show an animated GIF",
             "Upload a GIF as-is and play it. Size it to the panel first; it is not resized.",
             ["gif nyan.gif", "gif nyan.gif --speed 900"])
-    s.add_argument("path")
+    s.add_argument("path", type=argparse.FileType("rb"), help="GIF file")
     s.add_argument("--speed", type=int_range(0, 1050), default=600, help="0-1050, higher is faster (default: 600)")
 
     s = cmd("raw", "send one raw A0 frame",
