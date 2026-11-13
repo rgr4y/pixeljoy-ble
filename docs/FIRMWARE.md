@@ -321,11 +321,11 @@ output paths compute `level = 20 + min(b,100)*4/5` (0x1E28686 and 0x1E288F8):
 1e28690: r1 = r1 << 2 ; r1 = r1 / 5 ; r5 = r1 + 20
 ```
 
-So 0 is not off: it gives the 20 % floor. Values above 100 act like 100. The IR remote steps it ±10 within
+So 0 is not off: it gives the 20 % floor. Values above 100 act like 100. The remote steps it ±10 within
 10..100 (0x1E1ED84 / 0x1E1EDA6). Sending 101..255 is pointless; `protocol.set_brightness` already clamps to 1–100.
 
 **SET_FLIP (`15`): partly.** The byte is stored raw at `g+0x5C7`. READ_PROPERTY byte 7 echoes it, it is
-saved to `/set` (0x1E1E90A), and the IR remote **toggles it between 0 and 1** (0x1E1ED96). I found no
+saved to `/set` (0x1E1E90A), and the remote **toggles it between 0 and 1** (0x1E1ED96). I found no
 renderer that reads it. The search covered immediate-offset and `g+0x5BE`-relative reads, so it was not
 exhaustive. **Guess:** 0 means normal and 1 means flipped; other values are undefined. 1.9.6 also sets
 `horizontalReverse` (property byte 10 b3), but where that is applied was not found.
@@ -339,7 +339,7 @@ and stores every value raw, with no clamping:
 | 02 | g+0x24E4 | colour runs, u16 length |
 | 03 | g+0x812 | |
 | 04 | g+0x813 | |
-| 05 | g+0x814 → render copy g+0x751 | **mode: 13-way switch 0..12** at 0x1E2BF54 (`if (r0 > 12) goto default`), second switch 1..11 at 0x1E2FBC4. The IR remote sets 1 or 2. PROTOCOL.md calls this "font mode, 2 = RTL" (from the app); the firmware treats it as a display/animation mode selector. |
+| 05 | g+0x814 → render copy g+0x751 | **mode: 13-way switch 0..12** at 0x1E2BF54 (`if (r0 > 12) goto default`), second switch 1..11 at 0x1E2FBC4. The remote sets 1 or 2. PROTOCOL.md calls this "font mode, 2 = RTL" (from the app); the firmware treats it as a display/animation mode selector. |
 | 06 | g+0x815 → g+0x752 | **speed: per frame `acc += speed`, `step = acc / 25` px** (0x1E2D88A, 0x1E2DB1C, 0x1E2E2D8). 0 does not move, 25 is 1 px/frame, any u8 is accepted. One path uses `51 - speed` as a hold threshold (0x1E2D420). |
 | 07 | g+0x816 | |
 | 08 | g+0x819 (+ border-on flag 0x818) | |
@@ -538,8 +538,16 @@ and a reset would undo it. **Not tested.** A wrong value probably crashes the pa
 
 * `CT_*`: the effect-text engine (`29`/`2A`). It stores text in flash slots with generation numbers and
   CRCs, so it survives reboot. It uses `cbg` background GIFs and border PNGs from the material pack.
-* `remoter accept/reject`: the panel scans as a BLE central to pair a BLE remote. That is separate from the
-  IR remote (`48`/`49`).
+* **The remote is 2.4 GHz BLE, not IR** (Rob covered the IR window and it still worked; the board has no IR
+  receiver). The panel scans BLE adverts passively, without connecting. The scan handler is RAM code
+  0x9C0..0xB96, copied from flash 0x1E44228. Key packets are recognised by bytes 14/15 of the advert
+  (`'L' 'Z'`, `'W'`, `'U'` variants, `0x9A`/`0xAA`). They are accepted only if 4 ID bytes match the paired
+  remote stored at `g+0x1BF..0x1C2` while pairing is enabled (`g+0x1BD`). A sequence byte drops repeats.
+  Valid keys are posted to msg_task as `A7` messages; the key handler at 0x1E1EB00 does brightness ±10,
+  flip toggle, text mode 1/2, etc. Adverts carrying `'d' 'S' 'C' 'B'` with byte 15 = 1/2 are a separate
+  path. **Guess:** that is JieLi's test box.
+* `SET_REMOTE` (`48`): `48 01 x m` sets `g+0x5C9 = (m == 1 ? 0 : 1)` (remote enable); `48 02` forgets the paired
+  remote (clears `g+0x1BD..0x1C5`). `READ_REMOTE` (`49`) returns `[enabled, paired, id… (6 B)]`.
 * `TEST_BOX`: JieLi's factory test-box hook (boot log: `testbox msg handle reg`).
 * `[LIGHT_STATE]Starting factory reset`.
 * The external flash file system is littlefs (its debug strings are present).

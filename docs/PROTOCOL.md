@@ -241,7 +241,7 @@ through §3.3 with the same cmd byte.
 | `42` | GET_RESOURCE_VERSION | `01` |
 | `44` | SET_DEVICE_LOCK | `01 06 <6-char pwd>` lock / `00` unlock |
 | `45` | SET_MULTI_PACK_V2 | `enable n` |
-| `48` | SET_REMOTE | `id 01 param` (IR remote) |
+| `48` | SET_REMOTE | `01 x mode` enable / `02` forget the paired remote. The remote is 2.4 GHz BLE adverts, not IR ([FIRMWARE.md](FIRMWARE.md) §9) |
 | `49` | READ_REMOTE | `01` |
 | `4A` | START_SYNC_TIME | `01` |
 | `4B` | SHOW_SPLICE_NUM | |
@@ -358,7 +358,7 @@ DIY animations send interval `450` and no mode tag.
 - [ ] Check whether the firmware's PNG decoder accepts compressed IDAT or only stored blocks (level 0).
 - [x] `SHOW_CLOCK` (0x0D): confirmed on hardware.
 - [ ] Trace timers (0x30–0x35) and the partition/effect-text commands.
-- [ ] IR remote (`SET_REMOTE`/`READ_REMOTE`) semantics.
+- [x] Remote (`SET_REMOTE`/`READ_REMOTE`): a BLE-advert (2.4 GHz) remote, not IR. See FIRMWARE.md §9.
 
 ---
 
