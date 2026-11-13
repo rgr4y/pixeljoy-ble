@@ -49,4 +49,6 @@ contact with a panel.
 | `pixeljoy/render.py` | Pillow text → glyphs, image → panel-sized PNG |
 | `pixeljoy/devices.json` | 40 known models (size, chip, UUIDs) from the app's `th_dev_cfg.json` |
 | `tools/fetch_apk.sh` | re-download the vendor APK and decompile it with jadx (output is git-ignored) |
+| `tools/patch_apk.py` | rebuild the vendor app without telemetry for personal use (`--offline` also drops INTERNET); see `docs/APP_PRIVACY.md` |
+| `docs/APP_PRIVACY.md` | what the app sends home (hardware device ID on every request, IP geolocation, Tencent cloud speech) and what the patch removes |
 | `tests/` | unit tests for the encoders (`pytest`) |
