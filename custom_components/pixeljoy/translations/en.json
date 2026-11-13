@@ -1,0 +1,134 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "bluetooth_confirm": {
+        "description": "Set up {name}?"
+      },
+      "user": {
+        "title": "Pick a PixelJoy panel",
+        "data": {
+          "address": "Panel"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This panel is already configured",
+      "no_devices_found": "No PixelJoy panels in range",
+      "not_supported": "Not a supported PixelJoy panel"
+    }
+  },
+  "entity": {
+    "event": {
+      "remote": {
+        "name": "Remote",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "brightness_down": "Brightness down",
+              "brightness_up": "Brightness up",
+              "carousel": "Carousel",
+              "clock": "Clock",
+              "flip": "Flip",
+              "key_03": "Key 03",
+              "key_0a": "Key 0a",
+              "key_0d": "Key 0d",
+              "key_0e": "Key 0e",
+              "key_0f": "Key 0f",
+              "power": "Power",
+              "preset_1": "Preset 1",
+              "preset_2": "Preset 2",
+              "preset_3": "Preset 3",
+              "preset_4": "Preset 4",
+              "preset_5": "Preset 5",
+              "preset_6": "Preset 6",
+              "text_mode_1": "Text mode 1",
+              "text_mode_2": "Text mode 2",
+              "timer_2h": "Timer 2 h",
+              "timer_8h": "Timer 8 h",
+              "unknown": "Unknown key"
+            }
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "show_text": {
+      "name": "Show text",
+      "description": "Render text on this machine and scroll it on the panel.",
+      "fields": {
+        "text": {
+          "name": "Text",
+          "description": "Up to 600 characters (100 on older firmware)."
+        },
+        "color": {
+          "name": "Colour",
+          "description": "Text colour."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "Scroll speed 0-255 (pixels advance speed/25 per frame)."
+        },
+        "rainbow": {
+          "name": "Rainbow scheme",
+          "description": "Rainbow colour scheme index; overrides the colour."
+        }
+      }
+    },
+    "show_clock": {
+      "name": "Show clock",
+      "description": "The panel's built-in clock, drawn from its own RTC.",
+      "fields": {
+        "style": {
+          "name": "Style",
+          "description": "1-10, the app's clock styles."
+        },
+        "hour_24": {
+          "name": "24-hour",
+          "description": "24-hour time."
+        },
+        "show_date": {
+          "name": "Show date",
+          "description": "Alternate with the date (about 12 s time, 4 s date)."
+        },
+        "color": {
+          "name": "Colour",
+          "description": "Digit colour."
+        }
+      }
+    },
+    "show_image": {
+      "name": "Show image",
+      "description": "Scale an image file to the panel and show it.",
+      "fields": {
+        "path": {
+          "name": "Path",
+          "description": "Image file; must be under allowlist_external_dirs."
+        },
+        "fit": {
+          "name": "Fit",
+          "description": "stretch, contain (letterbox) or cover (crop)."
+        }
+      }
+    },
+    "show_gif": {
+      "name": "Show GIF",
+      "description": "Upload a GIF already sized to the panel and play it.",
+      "fields": {
+        "path": {
+          "name": "Path",
+          "description": "GIF file; must be under allowlist_external_dirs."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "0-1050, higher is faster."
+        }
+      }
+    },
+    "sync_time": {
+      "name": "Sync time",
+      "description": "Send HA's time zone, DST rules and wall clock to the panel."
+    }
+  }
+}

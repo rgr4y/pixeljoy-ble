@@ -155,8 +155,12 @@ class PixelJoy:
 
     # -- session ----------------------------------------------------------
 
-    async def connect(self) -> None:
+    async def _open(self) -> None:
+        """Connect the BLE link. Hosts with their own connection logic (Home Assistant) override this."""
         await self._client.connect()
+
+    async def connect(self) -> None:
+        await self._open()
         log.info("connected, mtu=%s", self.mtu)
         char = self._client.services.get_characteristic(self.model.write_uuid)
         if char is None:

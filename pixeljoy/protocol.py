@@ -691,3 +691,43 @@ def match_model(adv_name: str | None, service_uuids: Iterable[str], models: list
         if (adv_name == m.name or m.pid in adv_name) and m.scan_uuid[4:8] in uuids:
             return m
     return None
+
+
+# ---------------------------------------------------------------------------
+# "LZ" 2.4 GHz remote (BLE adverts, no connection) -- docs/FIRMWARE.md §9
+# ---------------------------------------------------------------------------
+
+REMOTE_LOCAL_NAME = "LZ"
+REMOTE_COMPANY_ID = 0x02CC  # manufacturer-data company id the remote uses
+
+# key code -> action, from the firmware's type-3 ("LZ") table at 0x1E1EB7E. Names with "?" are guesses.
+REMOTE_KEYS: dict[int, str] = {
+    0x01: "power", 0x02: "carousel", 0x03: "key_03", 0x04: "brightness_up", 0x05: "flip",
+    0x06: "text_mode_2", 0x07: "brightness_down", 0x08: "clock", 0x09: "text_mode_1", 0x0A: "key_0a",
+    0x0B: "timer_8h", 0x0C: "timer_2h", 0x0D: "key_0d", 0x0E: "key_0e", 0x0F: "key_0f",
+    0x10: "preset_1", 0x11: "preset_2", 0x12: "preset_3", 0x13: "preset_4", 0x14: "preset_5", 0x15: "preset_6",
+}
+
+
+@dataclass(frozen=True)
+class RemotePress:
+    remote_id: str  # 4 hex bytes the panel pairs on (low address bytes, as sent: e.g. "66554433")
+    seq: int        # rolling counter; one press is repeated with the same or rising seq
+    key: int
+
+    @property
+    def action(self) -> str:
+        return REMOTE_KEYS.get(self.key, f"key_{self.key:02x}")
+
+
+def parse_remote_advert(local_name: str | None, manufacturer_data: dict[int, bytes], address: str) -> RemotePress | None:
+    """Decode an LZ remote advert: name "LZ", company 0x02CC data ``seq id(2) key 00 00 chk(2)``.
+
+    ``address`` is the advertiser's MAC (``11:22:33:44:55:66``); the panel matches the 4 bytes
+    after the first two, low byte first. Returns None for anything that is not an LZ key packet.
+    """
+    data = manufacturer_data.get(REMOTE_COMPANY_ID)
+    if local_name != REMOTE_LOCAL_NAME or not data or len(data) < 4:
+        return None
+    mac = bytes.fromhex(address.replace(":", "").replace("-", ""))[::-1]  # LE order as on air
+    return RemotePress(remote_id=mac[:4].hex(), seq=data[0], key=data[3])

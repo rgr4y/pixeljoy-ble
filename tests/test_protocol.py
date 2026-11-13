@@ -230,3 +230,13 @@ def test_show_clock_payload():
     for bad in (-1, 10):     # style 10 corrupts panel RAM (docs/FIRMWARE.md §5a)
         with pytest.raises(ValueError):
             P.show_clock(bad)
+
+
+def test_parse_remote_advert():
+    # captured 2026-11-13 from the panel's LZ remote (re/captures/remote_20261113_013847.btsnoop)
+    mfr = {0x02CC: bytes.fromhex("2e6655050000e868")}
+    p = P.parse_remote_advert("LZ", mfr, "11:22:33:44:55:66")
+    assert p == P.RemotePress(remote_id="66554433", seq=0x2E, key=0x05) and p.action == "flip"
+    assert P.parse_remote_advert("P0AF_A1B2", mfr, "11:22:33:44:55:66") is None
+    assert P.parse_remote_advert("LZ", {0x004C: b"\x00" * 8}, "11:22:33:44:55:66") is None
+    assert P.RemotePress("x", 0, 0x7F).action == "key_7f"
