@@ -238,6 +238,9 @@ CLOCK_STYLES = ("one", "two", "three", "four", "five", "six", "seven", "eight", 
 
 def show_clock(style: int = 0, h24: bool = True, date: bool = False, color: tuple[int, int, int] = (255, 255, 255)) -> bytes:
     """Firmware-drawn clock (ClockActivity.buildClockDisplayData). ``style`` is 0-based (0-9)."""
+    # Firmware has no bounds check: style >= 10 writes digits outside the framebuffer (docs/FIRMWARE.md §5a)
+    if not 0 <= style < len(CLOCK_STYLES):
+        raise ValueError(f"clock style {style} out of range 0-{len(CLOCK_STYLES) - 1}")
     return frame(Cmd.SHOW_CLOCK, bytes([style, int(h24), int(date), *color]))
 
 

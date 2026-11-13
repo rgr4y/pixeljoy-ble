@@ -319,7 +319,7 @@ output paths compute `level = 20 + min(b,100)*4/5` (0x1E28686 and 0x1E288F8):
 ```
 
 So 0 is not off: it gives the 20 % floor. Values above 100 act like 100. The IR remote steps it ±10 within
-10..100 (0x1E1ED84 / 0x1E1EDA6). Sending 101..255 is pointless, and the CLI currently allows 1–255.
+10..100 (0x1E1ED84 / 0x1E1EDA6). Sending 101..255 is pointless; `protocol.set_brightness` already clamps to 1–100.
 
 **SET_FLIP (`15`): partly.** The byte is stored raw at `g+0x5C7`. READ_PROPERTY byte 7 echoes it, it is
 saved to `/set` (0x1E1E90A), and the IR remote **toggles it between 0 and 1** (0x1E1ED96). I found no

@@ -227,3 +227,6 @@ def test_show_clock_payload():
     # Confirmed on hardware: `raw 0d 02 01 00 ff ff ff` shows the live 24 h time.
     f = P.show_clock(2, h24=True, date=False, color=(255, 255, 255))
     assert f[:3] == bytes([0xA0, 0x0D, 0x09]) and f[3:-2] == bytes([2, 1, 0, 255, 255, 255])
+    for bad in (-1, 10):     # style 10 corrupts panel RAM (docs/FIRMWARE.md §5a)
+        with pytest.raises(ValueError):
+            P.show_clock(bad)

@@ -59,6 +59,13 @@
 - Caveat: the panel runs 1.8.5 and this is 1.9.6. READ_PROPERTY byte 10 already differs (`0xEA` vs `0x00`).
 
 **Follow-up**
-- CLI brightness accepts 1–255; the firmware clamps output at 100. Tighten to 0–100?
-- Never send SHOW_CLOCK style > 9 (out-of-bounds RAM writes). Validate it in the CLI.
+- Never send SHOW_CLOCK style > 9 (out-of-bounds RAM writes). Done in the follow-up entry below.
 - PROTOCOL.md §6/§7 still list the `A9` reply, the PNG question and the brightness/flip ranges as open; they can now point at FIRMWARE.md.
+
+## 2026-11-12: Guard SHOW_CLOCK style
+
+**Outcome:** `protocol.show_clock()` raises `ValueError` for styles outside 0–9. The CLI's `--style 1-10` already limited it, but API callers could send style 10, which makes the firmware write outside its framebuffer (FIRMWARE.md §5a). Brightness needed no change: the CLI takes 1–100 and `set_brightness` clamps. The earlier "CLI accepts 1–255" note was wrong.
+
+**Changed files:** `pixeljoy/protocol.py`, `tests/test_protocol.py`, `docs/FIRMWARE.md`, `PROGRESS.md`
+
+**Verification:** pytest and ruff pass. Not run on the panel.
