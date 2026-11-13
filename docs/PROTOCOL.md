@@ -66,7 +66,7 @@ scan with `python -m pixeljoy scan` will answer this.
 
 ## 2. Connection sequence
 
-1. Connect and request **MTU 512**. On success the app sets its write split
+1. Connect and request **MTU 512**. Writes use **write-without-response**: the app never sets a write type, so Android uses the characteristic default. A with-response write gets ATT error 3, "Write Not Permitted" (confirmed on a P0AF). On success the app sets its write split
    size to `min(mtu-3, 509)`. If the MTU request fails, it continues anyway.
 2. Enable notifications on `Fxxx`.
 3. **Handshake 1**: send `A0 00 08 'C' 'C' 'H' 'I' 'P' crc`. The app resends

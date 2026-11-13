@@ -33,6 +33,11 @@ async def main_async(args) -> None:
         return
 
     f = await _pick(args)
+    if args.cmd == "gatt":
+        from .client import dump_gatt
+
+        await dump_gatt(f.device)
+        return
     async with PixelJoy(f.device, f.model) as pj:
         if args.cmd == "info":
             print(pj.properties)
@@ -67,6 +72,7 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("scan")
     s.add_argument("--all", action="store_true", help="show non-PixelJoy devices too")
+    sub.add_parser("gatt", help="dump services/characteristics/properties")
     sub.add_parser("info")
     s = sub.add_parser("power")
     s.add_argument("state", choices=["on", "off"])

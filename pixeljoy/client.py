@@ -44,6 +44,18 @@ class PixelJoyError(RuntimeError):
     pass
 
 
+async def dump_gatt(address: str | BLEDevice) -> None:
+    """Print every service/characteristic/descriptor with its properties."""
+    async with BleakClient(address) as c:
+        print(f"mtu={getattr(c, 'mtu_size', '?')}")
+        for s in c.services:
+            print(f"service {s.uuid}  {s.description}")
+            for ch in s.characteristics:
+                print(f"  char {ch.uuid}  props={ch.properties}  max_write_wo_resp={getattr(ch, 'max_write_without_response_size', '?')}")
+                for d in ch.descriptors:
+                    print(f"    desc {d.uuid}  {d.description}")
+
+
 class PixelJoy:
     def __init__(self, address: str | BLEDevice, model: P.Model):
         self.model = model
@@ -51,6 +63,8 @@ class PixelJoy:
         self._rx: asyncio.Queue[P.Reply] = asyncio.Queue()
         self.properties: P.Properties | None = None
         self.pack_v2_num = 1
+        self._write_response = False
+        self._max_write: int | None = None
 
     # -- plumbing ---------------------------------------------------------
 
@@ -80,9 +94,9 @@ class PixelJoy:
     async def _write(self, data: bytes) -> None:
         log.debug("TX %s", data.hex(" "))
         # Chunk at ATT payload size; firmware reassembles A0 frames by length.
-        step = max(20, self.mtu - 3)
+        step = max(20, self._max_write or (self.mtu - 3))
         for i in range(0, len(data), step):
-            await self._client.write_gatt_char(self.model.write_uuid, data[i : i + step], response=True)
+            await self._client.write_gatt_char(self.model.write_uuid, data[i : i + step], response=self._write_response)
 
     async def _expect(self, *, cmd: int | None = None, heads: tuple[int, ...] = (P.HEAD_DEV,), timeout: float = 5.0) -> P.Reply:
         loop = asyncio.get_running_loop()
@@ -105,6 +119,15 @@ class PixelJoy:
     async def connect(self) -> None:
         await self._client.connect()
         log.info("connected, mtu=%s", self.mtu)
+        char = self._client.services.get_characteristic(self.model.write_uuid)
+        if char is None:
+            raise PixelJoyError(f"write characteristic {self.model.write_uuid} not found; run `python -m pixeljoy gatt`")
+        # Match Android's default (the vendor app never sets a write type): if the
+        # characteristic supports write-without-response, that is what gets used.
+        self._write_response = "write-without-response" not in char.properties
+        self._max_write = getattr(char, "max_write_without_response_size", None) if not self._write_response else None
+        log.info("write char %s properties=%s -> response=%s max_write=%s",
+                 char.uuid, char.properties, self._write_response, self._max_write)
         await self._client.start_notify(self.model.notify_uuid, self._on_notify)
         await self.handshake()
         self.properties = await self.read_properties()
