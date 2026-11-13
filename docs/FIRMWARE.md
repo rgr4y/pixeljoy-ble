@@ -546,6 +546,28 @@ and a reset would undo it. **Not tested.** A wrong value probably crashes the pa
   Valid keys are posted to msg_task as `A7` messages; the key handler at 0x1E1EB00 does brightness ±10,
   flip toggle, text mode 1/2, etc. Adverts carrying `'d' 'S' 'C' 'B'` with byte 15 = 1/2 are a separate
   path. **Guess:** that is JieLi's test box.
+* **Remote packet (captured 2026-11-13 on a Linux host, nRF52840 HCI):** non-connectable advert from `11:22:33:44:55:66`
+  (fixed address). AD `09` name `"LZ"`, then AD `FF` manufacturer data
+  `CC 02 | seq | 66 55 | key | 00 00 | c0 c1`. `seq` increments per transmission. `66 55` is the ID (low address
+  bytes). `c0 c1` matches no common CRC-16, and whether the panel checks it is unknown.
+* **Key → action (`LZ` = remote type 3, table at 0x1E1EB7E, index `key-1`; handlers 0x1E1EC40..0x1E1EEDC).**
+  Mostly confirmed. The labels marked ? are guesses from the handler bodies:
+
+  | key | action | key | action |
+  |---|---|---|---|
+  | 01 | power / pause? (depends on mode, 0x1E1ED5A) | 0B | auto-off timer 8 h? (`[g+0x304] = 28800`) |
+  | 02 | carousel (mode 3) | 0C | auto-off timer 2 h? (`[g+0x30C] = 7200`) |
+  | 03 | ? (0x1E1EDBC, gated on `g+0x80`) | 0D, 0E, 0F | ? (0x1E1EDCC, resets remote state) |
+  | 04 | brightness +10 (max 100) | 10 | preset animation 1 (GIF mode, table `g+0x13B0`) |
+  | 05 | flip toggle 0↔1 | 11 | preset 2 (`g+0x13BC`) |
+  | 06 | text mode 2 (text mode only) | 12 | preset 3 (`g+0x13C8`) |
+  | 07 | brightness −10 (min 10) | 13 | preset 4 (`g+0x13D4`) |
+  | 08 | clock (mode 4) | 14 | preset 5 (`g+0x13E0`) |
+  | 09 | text mode 1 (text mode only) | 15 | preset 6 (`g+0x13EC`) |
+  | 0A | toggle `g+0x300`? (0x1E1EE86) | | |
+
+  Keys seen in the capture: `01 04 05 06 07 09 0D 0E`. The presets are `mar` material entries (car-window GIFs).
+  Other remote types (`'U'` = type 4) use the second table at 0x1E1EC0E.
 * `SET_REMOTE` (`48`): `48 01 x m` sets `g+0x5C9 = (m == 1 ? 0 : 1)` (remote enable); `48 02` forgets the paired
   remote (clears `g+0x1BD..0x1C5`). `READ_REMOTE` (`49`) returns `[enabled, paired, id… (6 B)]`.
 * `TEST_BOX`: JieLi's factory test-box hook (boot log: `testbox msg handle reg`).
