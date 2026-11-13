@@ -385,9 +385,25 @@ the panel; the decoder needs heap for the inflated scanlines.
   The array counters are also unbounded: a pack with more than 10 `tim` records would overwrite the
   SEND_FILE state at g+0xDDC.
 
-**OTA receive path:** not traced. The firmware contains JieLi's `update` / `sdfile` code (strings `update`,
-`res.bin`, `sdfile`), but this protocol's dispatcher has no OTA command, so OTA probably goes over JieLi's
-own service or another path. Unknown.
+**OTA transfer: confirmed (app `com.th.ota.core.OTAManager`, firmware msg_task 0x1E246A6).** It is a vendor
+protocol on the same write characteristic, not part of the `A0` dispatcher:
+
+```
+B1 04 <file_len u32 LE>              -> B1 [1] ready           (material: B4/B5/B6; comms: B9/BA/BB; cancel B7/BC)
+B2 <n> <chunk>  ... n = mtu-2        -> B2 = next              (firmware writes 4 KiB pages to a flash staging area)
+B3 08 <crc32 BE> <byte_sum u32 BE>   -> B3 [1] ok / else fail  (standard zlib CRC-32, computed by the sender)
+```
+
+On a match the firmware logs "[OTA]OTA file check sum" and starts JieLi's `dw_update` task; on a mismatch it
+logs "[OTA]Check Fail!". The file sent is the encrypted `.bin` exactly as downloaded. It has **no signature**.
+Every check inside the decrypted image can be recomputed (CRC16-CCITT, init 0):
+
+* each file-table entry's header CRC, over bytes 2..31
+* `app.bin` data CRC `0xC149` and `cfg_tool.bin` data CRC `0x549D`, over their own bytes
+* `app_area_head` data CRC `0x5AA9`, over file bytes `0x20..end`
+
+A patched image is therefore: patch, fix the 4 CRCs, re-encrypt with key `0xB107`, send `B1`/`B2`/`B3`.
+Untraced: what `dw_update` does after that (§6).
 
 ---
 
@@ -403,4 +419,48 @@ own service or another path. Unknown.
 * What `[g+0xA0]` is (the handshake challenge seed).
 * What text tags 03/04/07/09/0A/0C/0E mean in rendering. Only their storage was traced.
 * The SET_PARTITION protocol (no handler in 1.9.6).
-* The OTA path, and whether OTA flashing checks the MD5/CRC.
+* What JieLi's `dw_update` task does with a staged OTA image: whether it verifies the image, falls back if
+  the new image fails, or touches the bootloader.
+
+---
+
+## 7. `cfg_tool.bin` and the board
+
+### 7.1 `cfg_tool.bin` (0x498E4, 916 bytes)
+
+**Confirmed: it is byte-identical to JieLi's stock default.** It matches `cpu/br23/tools/cfg_tool.bin` in
+[fw-AC63_BT_SDK](https://github.com/Jieli-Tech/fw-AC63_BT_SDK). The vendor never ran the config tool, so
+these are earbud-oriented SDK defaults. The panel's name (`P0AF_xxxx`), BLE settings and LED behaviour all
+come from code.
+
+The file starts with a 0x44-byte header (`90 03 00 00 8f 5e c2 03`, then `FF` padding). After that comes a
+chain of `[u16 tag][u16 len<<4 | flags][data]` records, ending with `00 00 00 00`. Values are mapped from the
+SDK's `cfg_tool_state_complete.lua`:
+
+| Offset | Len | Data | Setting |
+|---|---|---|---|
+| 0x44 | 4 | `01 1F 19 19` | Volume config enabled, max 31, default 25, prompt-tone 25 |
+| 0x4C | 5 | `01 00 08 03 03` | Charging enabled; no power-on while charging; full-voltage step 8, full-current step 3, charge current 3 |
+| 0x55 | 4 | `54 01 4A 01` | Low-battery warning 340, shutdown 330 (×10 mV) |
+| 0x5D | 29 | `01 09 03 03 15 0E …` | Status sync on; UI/tone choice per event (power on/off, charge, BT connect…) |
+| 0x7E | 660 | `01` + 20 × 33 B | Classic-BT name list: 1 name enabled, `AC695X_1` … `AC695X_20` |
+| 0x316 | 6 | `FF ×6` | BT MAC unset (chip or random default) |
+| 0x320 | 1 | `0A` | BT TX power 10 |
+| 0x325 | 72 | `03 16 02 01` + floats | Call/AEC tuning: MIC gain 3, DAC gain 22, AEC mode 2, uplink EQ on, then the AEC/NS floats |
+| 0x371 | 3 | `01 10 02` | Capacitor-less mic on, bias 16, MIC LDO 2 |
+| 0x378 | 2 | `FF FF` | TWS pairing code |
+| 0x37E | 1 | `03` | Auto-off with no connection: 3 |
+| 0x383 | 9 | `E0 01 90 01 E0 01 8C 00 01` | Low-power clock: lrc/btosc `ws_inc` 480/480, `ws_init` 400/140, `lrc_change_mode` 1 |
+
+Guess: none of this matters to a 5 V panel with no battery or audio. Editing it is not worth the reflash.
+
+### 7.2 Board (from photos, PCB `DB601D16-32C2508F1`)
+
+| Part | What | Notes |
+|---|---|---|
+| U14 | LQFP48 JieLi SoC (AC6951C per the model table) | 24 MHz crystal Y2. The code (internal flash) is only reachable through the chip |
+| U15 | SOP-8 SPI NOR, `…25L64…` (64 Mbit) | **Guess:** holds the file system (`/set`, `/mat`, `/diy`, uploads, material pack). READ_EXTERNAL_FLASH_SPACE reports 0x680000 bytes |
+| Pads `VCC DM DP GND` | Chip USB | The USB-C connector looks power-only (5 V/GND), so these are the way into the mask-ROM USB loader (§ OTA / jl-uboot-tool) |
+| Pads `5V RX TX GND` | UART | **Guess:** the SDK log UART that prints the `[Info]: …` strings seen in the code. Logic is 3.3 V; leave the `5V` pad unconnected |
+| U4/U8/U12, U5/U9/U13 (TSSOP-24), U16/U17 (SOP-16) | LED column drivers and row-scan switches | Guess from the layout. Part numbers not read |
+| U2, D1, R10/R11, C49 | 3.3 V LDO, protection, likely USB-C CC resistors | Guess |
