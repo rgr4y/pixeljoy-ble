@@ -391,3 +391,37 @@ connection (`04`, `00`, `05` seen).
 
 Unknown: right after the time sync, the panel sent `a9 01 04 01 b3 78`
 (head `A9`, cmd `01`, payload `01`) once. Not yet traced.
+
+---
+
+## 8. Firmware and resource ("material") updates
+
+The app looks for updates with `POST https://pixeljoyapi.smartthingsapp.com/public/app/ota/getOTA`.
+The body is JSON; form encoding returns `code 1017`. Fields:
+`{"otaClass": N, "otaDevice": "<deviceMoldPid, e.g. P0AF>", "otaNumber": "<current version>"}`
+(`DeviceRequest.checkFirmwareVersion`). `otaClass` 1 = firmware, 2 = material
+(resource pack), 3 = communication version. The response's `otaSrc` points at an
+S3 `.bin`, and `otaMD5` is that file's MD5.
+
+On 2026-11-12, for P0AF with `otaNumber` 1.0.0:
+
+| Class | Latest | Size | MD5 | Contents |
+|---|---|---|---|---|
+| 1 firmware | 1.9.6 (panel runs 1.8.5) | 302 KB | `e5731d33…` | encrypted or scrambled (no readable strings); typical for JieLi |
+| 2 material | 1.2.1 | 822 KB | `2cb29106…` | plain container of 73 GIF89a files, see below |
+| 3 comms | none | – | – | `updateEnable` 2 |
+
+The files are kept in `re/firmware/` (git-ignored). Nothing has been flashed.
+
+**Material pack layout (partly decoded):** header `6c 69 62 01 02 01 00 "C4x2"…`, then a
+`gspl` block, then entries `"im" u32 offset u16 length` that each point at a GIF. Contents:
+
+* 34 GIFs at 32×16:
+  * the PixelJoy boot logo
+  * the 10 clock-style animations: art on the bottom rows, black space at the top where the firmware draws the digits
+  * car-window presets: `<<<LEFT`, `RIGHT>>>`, hazard triangles, "BABY IN CAR", "TURN OFF YOU…", eyes, fire, and others
+* 39 GIFs at 96×16: colour gradients and stripes. These are probably the `SHOW_TEXT` rainbow (tag `01`) schemes, used as a texture behind the glyphs (unverified).
+
+So the clock animations are swappable GIFs, but the only way to change them is a
+material OTA. That needs the rest of the container format (checksums?) and the BLE OTA
+transfer. A bad flash may brick the panel.
