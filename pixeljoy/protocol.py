@@ -304,6 +304,124 @@ def sync_time(now: _dt.datetime | None = None) -> bytes:
     return frame(Cmd.SYNC_TIME, payload)
 
 
+def start_sync_time() -> bytes:
+    return frame(Cmd.START_SYNC_TIME, b"\x01")
+
+
+def _java_div(a: int, b: int) -> int:
+    """Java int division (truncates toward zero)."""
+    q = abs(a) // abs(b)
+    return q if (a >= 0) == (b > 0) else -q
+
+
+def _java_rem(a: int, b: int) -> int:
+    return a - _java_div(a, b) * b
+
+
+def _find_transitions(tz, year: int):
+    """(dst_start, dst_end) as (local_dt_after, offset_before_s, offset_after_s), like DaylightSavingUtil."""
+    utc = _dt.timezone.utc
+    t = _dt.datetime(year, 1, 1, tzinfo=tz).astimezone(utc)
+    end = _dt.datetime(year + 1, 1, 1, tzinfo=tz).astimezone(utc)
+    off = lambda u: int(u.astimezone(tz).utcoffset().total_seconds())  # noqa: E731
+    start_tr = end_tr = None
+    prev = off(t)
+    step = _dt.timedelta(hours=1)
+    while t < end:
+        nxt = t + step
+        o = off(nxt)
+        if o != prev:
+            lo, hi = t, nxt  # binary search to the second
+            while hi - lo > _dt.timedelta(seconds=1):
+                mid = lo + (hi - lo) / 2
+                if off(mid) == prev:
+                    lo = mid
+                else:
+                    hi = mid
+            inst = hi.replace(microsecond=0)
+            # Java: transition.getDateTimeAfter() = instant expressed in the *after* offset
+            local_after = (inst + _dt.timedelta(seconds=o)).replace(tzinfo=None)
+            if o > prev:
+                start_tr = (local_after, prev, o)
+            else:
+                end_tr = (local_after, prev, o)
+            prev = o
+        t = nxt
+    return start_tr, end_tr
+
+
+def _protocol_rule(month: int, week: int, dow: int, hour: int, shift: int, is_dst: bool) -> tuple[int, int, int, int]:
+    """DaylightSavingUtil.getProtocolInfo: shift hour by +-dst offset with day/week wrap."""
+    if is_dst and shift != 0:
+        hour += shift
+        if hour >= 24:
+            hour -= 24
+            if dow == 7:
+                week, dow = week + 1, 1
+            else:
+                dow += 1
+        elif hour < 0:
+            hour += 24
+            if dow == 1:
+                week, dow = week - 1, 7
+            else:
+                dow -= 1
+    return month, week, dow, hour
+
+
+def time_zone_payload(tz_name: str | None = None, now: _dt.datetime | None = None) -> bytes:
+    """SET_TIME_ZONE (0x8F) payload, replicating DaylightSavingUtil + DeviceCommand.setTimeZone.
+
+    std_h std_m is_dst | s_mon s_week s_dow s_hour | e_mon e_week e_dow e_hour | dst_h
+    week = ISO aligned week of month ((day-1)//7+1), dow Mon=1..Sun=7, hours are the
+    wall-clock time just before each transition.
+    """
+    from zoneinfo import ZoneInfo
+
+    if tz_name is None:
+        tz_name = _local_tz_name()
+    tz = ZoneInfo(tz_name)
+    now = now.astimezone(tz) if now else _dt.datetime.now(tz)
+    jan1 = _dt.datetime(now.year, 1, 1, tzinfo=tz)
+    std = int((jan1.utcoffset() - (jan1.dst() or _dt.timedelta())).total_seconds())
+    std_h, std_m = _java_div(std, 3600), _java_div(_java_rem(std, 3600), 60)
+    start, end = _find_transitions(tz, now.year)
+    is_dst = start is not None and end is not None
+    dst_h = _java_div(start[2] - start[1], 3600) if start else 0
+
+    def rule(tr):
+        if tr is None:
+            return 0, 0, 0, 0
+        d = tr[0]
+        return d.month, (d.day - 1) // 7 + 1, d.isoweekday(), d.hour
+
+    s = _protocol_rule(*rule(start), -dst_h, is_dst)
+    e = _protocol_rule(*rule(end), dst_h, is_dst)
+    vals = [std_h, std_m, 1 if is_dst else 0,
+            s[0], s[1], s[2], s[3] if is_dst else 0,
+            e[0], e[1], e[2], e[3] if is_dst else 0,
+            dst_h]
+    return bytes(v & 0xFF for v in vals)
+
+
+def set_time_zone(tz_name: str | None = None, now: _dt.datetime | None = None) -> bytes:
+    return frame(Cmd.SET_TIME_ZONE, time_zone_payload(tz_name, now))
+
+
+def _local_tz_name() -> str:
+    import os
+
+    if os.environ.get("TZ"):
+        return os.environ["TZ"]
+    try:  # macOS / most Linux: /etc/localtime -> .../zoneinfo/Area/City
+        target = os.path.realpath("/etc/localtime")
+        if "zoneinfo/" in target:
+            return target.split("zoneinfo/", 1)[1]
+    except OSError:
+        pass
+    return "UTC"
+
+
 def time_reply(unix_ms: int | None = None) -> bytes:
     """Response to an A9 'get time' request from the device."""
     if unix_ms is None:

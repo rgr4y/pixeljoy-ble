@@ -159,3 +159,65 @@ def test_model_table_and_match():
     assert m.service_uuid == "0000e08f-0000-1000-8000-00805f9b34fb"
     assert P.match_model("P08F_1234", ["0000c088-0000-1000-8000-00805f9b34fb"], models) is None
     assert P.match_model("random", ["0000c08f-0000-1000-8000-00805f9b34fb"], models) is None
+
+
+# --- captured from real hardware: P0AF_A1B2, fw 1.8.5 -------------------------
+
+P0AF_PROPS = bytes.fromhex("012010040000" "0c00fdc8") + bytes(30)
+
+
+def test_hw_handshake_capture():
+    f2 = P.handshake_second(bytes.fromhex("43434849500405"))
+    assert f2[3:10] == b"CCHIP" + bytes([0x04 ^ 0x24, 0x05 ^ 0x4C])
+    assert P.handshake_second_ok(bytes.fromhex("434348495000"))
+
+
+def test_hw_properties_capture():
+    p = P.parse_properties(P0AF_PROPS)
+    assert (p.power, p.mode, p.brightness, p.vertical_flip) == (True, 4, 12, False)
+    assert (p.raw[1], p.raw[2]) == (32, 16)
+    assert p.support_lock and not p.locked
+    assert p.support_pack_v2 and p.pack_v2_set and p.support_no_response_a4 and p.support_600_txt
+    assert p.pack_v2_num == 200 and p.preferred_pack_v2_num == 200
+    assert not (p.support_text_bg_color or p.support_text_align or p.support_splice)
+    assert P.parse_version(bytes([1, 8, 5])) == "1.8.5"
+
+
+# --- time zone / DST (SET_TIME_ZONE 0x8F) --------------------------------------
+
+
+def test_time_zone_us_pacific_2026():
+    import datetime as dt
+
+    p = P.time_zone_payload("America/Los_Angeles", dt.datetime(2026, 11, 12, 20, 0, tzinfo=dt.timezone.utc))
+    # std -8:00, DST; starts Sun Mar 8 02:00 (2nd Sunday), ends Sun Nov 1 02:00 (1st Sunday), +1h
+    assert list(p) == [0xF8, 0, 1, 3, 2, 7, 2, 11, 1, 7, 2, 1]
+
+
+def test_time_zone_europe_london_2026():
+    import datetime as dt
+
+    p = P.time_zone_payload("Europe/London", dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc))
+    # std 0:00; BST starts Sun Mar 29 01:00 (aligned week 5), ends Sun Oct 25 02:00 (week 4)
+    assert list(p) == [0, 0, 1, 3, 5, 7, 1, 10, 4, 7, 2, 1]
+
+
+def test_time_zone_no_dst_and_half_hour():
+    import datetime as dt
+
+    now = dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)
+    assert list(P.time_zone_payload("Asia/Shanghai", now)) == [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    assert list(P.time_zone_payload("Asia/Kolkata", now)) == [5, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    assert list(P.time_zone_payload("America/Phoenix", now))[:3] == [0xF9, 0, 0]
+
+
+def test_time_zone_southern_hemisphere():
+    import datetime as dt
+
+    p = P.time_zone_payload("Australia/Sydney", dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc))
+    # std +10 (not the +11 in force on Jan 1); DST starts Sun Oct 4 02:00, ends Sun Apr 5 03:00
+    assert list(p) == [10, 0, 1, 10, 1, 7, 2, 4, 1, 7, 3, 1]
+
+
+def test_start_sync_time_frame():
+    assert P.start_sync_time()[:4] == bytes([0xA0, 0x4A, 0x04, 0x01])

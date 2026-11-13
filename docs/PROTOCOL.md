@@ -22,9 +22,11 @@ encryption). The relevant classes are:
 | `com.th.common.protocol.pixel.PixelProtocol` | reply parser |
 | `assets/th_dev_cfg.json` | built-in model table (sizes, UUIDs) |
 
-> **Status:** derived from static analysis only. Not yet checked against a
-> live panel. Items marked **(unverified)** are inferences.
-> Anything not marked comes straight from the decompiled code.
+> **Status:** derived from static analysis. Connection, handshake and
+> `READ_PROPERTY` are **confirmed on hardware** (P0AF_A1B2, 32×16, firmware
+> 1.8.5; see §7). Everything else is not yet exercised on a panel. Items
+> marked **(unverified)** are inferences. Anything not marked comes straight
+> from the decompiled code.
 
 ---
 
@@ -59,8 +61,10 @@ means is not yet known. The full 40-entry table is in
 [`pixeljoy/devices.json`](../pixeljoy/devices.json). It covers sizes from 32×16 to 448×32, plus
 192×64 and 64×64.
 
-The panel's actual advertised name tells us which model we have. The first
-scan with `python -m pixeljoy scan` will answer this.
+Observed on hardware: the panel advertises as `P0AF_A1B2` with the single
+service UUID `0000c0af-…` and no manufacturer data. The suffix is presumably
+derived from the MAC. Its write characteristic `A0AF` offers only
+`write-without-response`, with a max of 509 bytes on macOS.
 
 ---
 
@@ -72,14 +76,40 @@ scan with `python -m pixeljoy scan` will answer this.
 3. **Handshake 1**: send `A0 00 08 'C' 'C' 'H' 'I' 'P' crc`. The app resends
    it every 1 s, up to 3 times.
 4. The device replies with an `A1` frame, cmd `0x00`. Call its payload `p`.
-   The challenge bytes are `p[5]`, `p[6]`, probably right after an echoed
-   `"CCHIP"` **(unverified)**.
+   The payload is `"CCHIP"` echoed plus 2 challenge bytes `p[5]`, `p[6]`.
+   Confirmed on hardware: `43 43 48 49 50 04 05`.
 5. **Handshake 2**: send cmd `0x01` with payload
    `"CCHIP" + (p[5] ^ 0x24) + (p[6] ^ 0x4C)`. The XOR constants are the
    command bytes `SET_PARTITION` (0x24) and `READ_COMMUNICATION_VERSION`
    (0x4C).
-6. The device replies with `A1` cmd `0x01`. `payload[5] == 0` means success.
+6. The device replies with `A1` cmd `0x01`, payload `"CCHIP" + status`.
+   Status `0` means success. Confirmed on hardware: `43 43 48 49 50 00`.
 7. The app then sends `READ_PROPERTY` (cmd `0x10`, payload `01`). See §5.1.
+8. After the property reply, the app syncs the clock (`MainActivity.syncMoreDeviceInfo`):
+   `SET_TIME_ZONE` (0x8F) → `SYNC_TIME` (0x31) → `GET_FIRMWARE_VERSION` →
+   `GET_RESOURCE_VERSION` → `START_SYNC_TIME` (0x4A, payload `01`).
+   It skips this for splice/same-size groups.
+
+### 2.1 `SET_TIME_ZONE` payload (from `DaylightSavingUtil`)
+
+```
+std_h std_m is_dst | s_mon s_wk s_dow s_hr | e_mon e_wk e_dow e_hr | dst_h      (all i8)
+```
+
+* `std_h`, `std_m`: the zone's *standard* offset. Java int division, so −3:30
+  is `FD E2` (−3, −30).
+* The two rules are the year's offset-increase and offset-decrease transitions.
+  * `wk`: ALIGNED_WEEK_OF_MONTH, i.e. `(day-1)//7+1`. "Last Sunday" can be 4 or 5.
+  * `dow`: Mon=1 … Sun=7.
+  * `hr`: the wall-clock hour *before* the jump (e.g. 02 for US spring-forward
+    and fall-back). The app derives it from the post-transition local time
+    shifted by ∓`dst_h`, with day/week wrap.
+* If the zone has no DST: `is_dst=0` and all rule bytes are 0.
+* Example, America/Los_Angeles 2026: `F8 00 01 03 02 07 02 0B 01 07 02 01`.
+
+`pixeljoy.protocol.time_zone_payload()` reproduces this. It was checked
+byte-for-byte against the same algorithm in `java.time` for LA, London,
+Sydney, Kolkata, Phoenix, St John's and Chatham.
 
 Sending commands before the handshake completes probably gets them ignored
 **(unverified)**.
@@ -219,7 +249,7 @@ through §3.3 with the same cmd byte.
 | `51` | RHYTHMIC_SPECTRUM | |
 | `82` | CHECK_DEVICE_PWD | `pwd` |
 | `8E` | RESET_DEVICE (file system) | `02` |
-| `8F` | SET_TIME_ZONE | `std_h std_m dst? s_mon s_wk s_dow s_h e_mon e_wk e_dow e_h dst_h` |
+| `8F` | SET_TIME_ZONE | 12 bytes, see §2.1 |
 
 ### 4.1 Showing content = upload a file, then reference it by name
 
@@ -292,6 +322,8 @@ DIY animations send interval `450` and no mode tag.
 | Byte | Meaning |
 |---|---|
 | 0 | power (1 = on) |
+| 1 | panel width (observed `0x20` = 32; the app ignores it) |
+| 2 | panel height (observed `0x10` = 16; the app ignores it) |
 | 3 | current mode |
 | 6 | brightness (0 → treat as 1) |
 | 7 | vertical flip |
@@ -317,10 +349,34 @@ DIY animations send interval `450` and no mode tag.
 
 ## 6. Open questions / next steps on hardware
 
-- [ ] Capture the advertisement: exact name, which PID, manufacturer data.
-- [ ] Confirm the handshake reply layout (`p[5]`, `p[6]`).
-- [ ] Dump a `READ_PROPERTY` reply and decode the flags for this unit.
+- [x] Capture the advertisement: `P0AF_A1B2`, UUID `c0af`, no manufacturer data.
+- [x] Confirm the handshake reply layout (`p[5]`, `p[6]`).
+- [x] Dump a `READ_PROPERTY` reply and decode the flags for this unit (§7).
 - [ ] Find the brightness range, the `SET_FLIP` values, and the `SHOW_TEXT` speed/mode ranges.
 - [ ] Check whether the firmware's PNG decoder accepts compressed IDAT or only stored blocks (level 0).
 - [ ] Trace `SHOW_CLOCK` (0x0D), timers (0x30–0x35) and the partition/effect-text commands.
 - [ ] IR remote (`SET_REMOTE`/`READ_REMOTE`) semantics.
+
+---
+
+## 7. Hardware captures
+
+**P0AF_A1B2**: 32×16, `GET_FIRMWARE_VERSION` → 1.8.5, macOS/CoreBluetooth, MTU 512.
+
+```
+handshake 1 reply payload : 43 43 48 49 50 04 05
+handshake 2 reply payload : 43 43 48 49 50 00
+READ_PROPERTY payload     : 01 20 10 04 00 00 0c 00 fd c8 00 00 … (40 bytes, rest 00)
+```
+
+Decoded: power on, size 32×16, mode 4, brightness 12, no flip. Flags
+`0xFD` mean: lock supported (not locked), packV2 supported and set,
+remote supported, no-response A4, multi-screen, 600-char text. packV2Num
+is `0xC8` = 200. Bytes 10 and 11 are 0: no splice, text background colour,
+text alignment, effect text or flood fill.
+
+So for this unit:
+* text files use the 2-byte `count` and u16 colour-run indices
+  (`support600Txt`)
+* SHOW_TEXT must not send tags `0F` or `10`
+* multi-packet transfers send groups of 200 without waiting for `A3`/`A4`

@@ -1,4 +1,4 @@
-"""CLI: python -m pixeljoy {scan,info,power,brightness,text,image,gif,raw}"""
+"""CLI: python -m pixeljoy {scan,gatt,info,time,power,brightness,text,image,gif,raw}"""
 
 from __future__ import annotations
 
@@ -38,8 +38,11 @@ async def main_async(args) -> None:
 
         await dump_gatt(f.device)
         return
-    async with PixelJoy(f.device, f.model) as pj:
-        if args.cmd == "info":
+    async with PixelJoy(f.device, f.model, auto_time_sync=not args.no_time_sync, tz_name=args.tz) as pj:
+        if args.cmd == "time":
+            if args.no_time_sync:  # otherwise connect() already did it
+                await pj.sync_time(args.tz)
+        elif args.cmd == "info":
             print(pj.properties)
             print("firmware:", await pj.firmware_version())
         elif args.cmd == "power":
@@ -69,11 +72,14 @@ def main() -> None:
     ap.add_argument("-v", "--verbose", action="store_true", help="log every TX/RX frame")
     ap.add_argument("--address", help="BLE address to use when several panels are present")
     ap.add_argument("--timeout", type=float, default=8.0, help="scan seconds")
+    ap.add_argument("--no-time-sync", action="store_true", help="don't sync the panel clock on connect")
+    ap.add_argument("--tz", help="IANA time zone for the panel clock (default: this machine's)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("scan")
     s.add_argument("--all", action="store_true", help="show non-PixelJoy devices too")
     sub.add_parser("gatt", help="dump services/characteristics/properties")
     sub.add_parser("info")
+    sub.add_parser("time", help="connect, sync the panel clock (time zone + DST + time), disconnect")
     s = sub.add_parser("power")
     s.add_argument("state", choices=["on", "off"])
     s = sub.add_parser("brightness")

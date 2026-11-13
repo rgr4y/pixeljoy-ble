@@ -57,8 +57,10 @@ async def dump_gatt(address: str | BLEDevice) -> None:
 
 
 class PixelJoy:
-    def __init__(self, address: str | BLEDevice, model: P.Model):
+    def __init__(self, address: str | BLEDevice, model: P.Model, auto_time_sync: bool = True, tz_name: str | None = None):
         self.model = model
+        self.auto_time_sync = auto_time_sync
+        self.tz_name = tz_name
         self._client = BleakClient(address)
         self._rx: asyncio.Queue[P.Reply] = asyncio.Queue()
         self.properties: P.Properties | None = None
@@ -134,6 +136,8 @@ class PixelJoy:
         self.pack_v2_num = self.properties.preferred_pack_v2_num
         if self.properties.support_pack_v2 and self.properties.pack_v2_num != self.pack_v2_num:
             await self._write(P.set_multi_pack_v2(True, self.pack_v2_num))
+        if self.auto_time_sync:
+            await self.sync_time(self.tz_name)
 
     async def handshake(self, attempts: int = 3) -> None:
         for _ in range(attempts):
@@ -163,8 +167,13 @@ class PixelJoy:
     async def brightness(self, level: int) -> None:
         await self._write(P.set_brightness(level))
 
-    async def sync_time(self) -> None:
+    async def sync_time(self, tz_name: str | None = None) -> None:
+        """Same sequence the app sends after connecting: time zone/DST, wall clock, start."""
+        tz_payload = P.time_zone_payload(tz_name)
+        log.info("time sync: tz=%s payload=%s", tz_name or P._local_tz_name(), tz_payload.hex(" "))
+        await self._write(P.frame(P.Cmd.SET_TIME_ZONE, tz_payload))
         await self._write(P.sync_time())
+        await self._write(P.start_sync_time())
 
     async def firmware_version(self) -> str:
         return P.parse_version((await self.request(P.get_firmware_version(), P.Cmd.GET_FIRMWARE_VERSION)).payload)
