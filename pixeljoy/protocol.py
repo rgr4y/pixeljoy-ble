@@ -233,6 +233,14 @@ def read_property() -> bytes:
     return frame(Cmd.READ_PROPERTY, b"\x01")
 
 
+CLOCK_STYLES = ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
+
+
+def show_clock(style: int = 0, h24: bool = True, date: bool = False, color: tuple[int, int, int] = (255, 255, 255)) -> bytes:
+    """Firmware-drawn clock (ClockActivity.buildClockDisplayData). ``style`` is 0-based (0-9)."""
+    return frame(Cmd.SHOW_CLOCK, bytes([style, int(h24), int(date), *color]))
+
+
 def switch_light(on: bool) -> bytes:
     return frame(Cmd.SWITCH_LIGHT, bytes([1 if on else 0]))
 

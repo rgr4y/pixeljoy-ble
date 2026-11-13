@@ -215,7 +215,7 @@ through §3.3 with the same cmd byte.
 | `0A` | SHOW_TEXT | TLV, §4.2 |
 | `0B` | SHOW_IMG | TLV, §4.3 |
 | `0C` | SHOW_GIF | TLV, §4.3 |
-| `0D` | SHOW_CLOCK | (not yet traced) |
+| `0D` | SHOW_CLOCK | `style 24h date r g b`: style 0–9 (the app's 10 clock styles; `clock_*_gif3216.gif` are only picker previews), `24h` 1 = 24-hour, `date` 1 = show the date, then the digit colour (`ClockActivity.buildClockDisplayData`). The firmware draws the time from its own RTC. Confirmed on P0AF. |
 | `0E` | STOPWATCH | `1`..`5` (start/pause/reset/…, exact mapping unverified) |
 | `0F` | PLAY_CAROUSEL | repeated `name_len name type play_cnt [FF switch_anim]` |
 | `10` | READ_PROPERTY | `01` |
@@ -356,7 +356,8 @@ DIY animations send interval `450` and no mode tag.
 - [x] Brightness range: 0–100 percent (app slider max 100).
 - [ ] Find the `SET_FLIP` values, and the `SHOW_TEXT` speed/mode ranges.
 - [ ] Check whether the firmware's PNG decoder accepts compressed IDAT or only stored blocks (level 0).
-- [ ] Trace `SHOW_CLOCK` (0x0D), timers (0x30–0x35) and the partition/effect-text commands.
+- [x] `SHOW_CLOCK` (0x0D): confirmed on hardware.
+- [ ] Trace timers (0x30–0x35) and the partition/effect-text commands.
 - [ ] IR remote (`SET_REMOTE`/`READ_REMOTE`) semantics.
 
 ---

@@ -53,6 +53,9 @@ pixeljoy info --json | jq .properties
 pixeljoy time                          # sync the clock (also done on every connect)
 pixeljoy time --tz Europe/London
 
+pixeljoy clock                         # live clock drawn by the panel (style 1, 24 h, white)
+pixeljoy clock --style 3 --12h --date --color ff8800
+
 pixeljoy power off
 pixeljoy power on
 pixeljoy brightness 50                 # percent, 1-100 (same scale as the app slider)

@@ -1,4 +1,4 @@
-"""CLI: python -m pixeljoy {scan,gatt,info,time,power,brightness,text,image,gif,raw}"""
+"""CLI: python -m pixeljoy {scan,gatt,info,time,clock,power,brightness,text,image,gif,raw}"""
 
 from __future__ import annotations
 
@@ -112,6 +112,8 @@ async def main_async(args) -> None:
                     print(f"  {k:<28} {v}")
         elif args.cmd == "power":
             await pj.power(args.state == "on")
+        elif args.cmd == "clock":
+            await pj.show_clock(args.style - 1, not args.h12, args.date, args.color)
         elif args.cmd == "brightness":
             await pj.brightness(args.level)
         elif args.cmd == "text":
@@ -192,6 +194,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = cmd("power", "turn the display on or off", "Turn the display on or off.", ["power off", "power on"])
     s.add_argument("state", choices=["on", "off"])
+
+    s = cmd("clock", "show the live clock",
+            "Show the panel's built-in clock. The firmware draws the time from its own clock,\n"
+            "which is synced on every connect. Styles 1-10 are the app's clock styles, in the app's order.",
+            ["clock", "clock --style 3 --color ff8800", "clock --12h --date"])
+    s.add_argument("--style", type=int_range(1, len(P.CLOCK_STYLES)), default=1, metavar="1-10", help="clock style (default: 1)")
+    s.add_argument("--12h", dest="h12", action="store_true", help="12-hour format (default: 24-hour)")
+    s.add_argument("--date", action="store_true", help="show the date too")
+    s.add_argument("--color", type=hex_color, default=(255, 255, 255), metavar="RRGGBB", help="digit colour (default: ffffff)")
 
     s = cmd("brightness", "set brightness (percent, 1-100)",
             "Set brightness as a percentage, 1-100. This is the same scale as the app's\n"

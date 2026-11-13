@@ -201,6 +201,10 @@ class PixelJoy:
     async def power(self, on: bool) -> None:
         await self._write(P.switch_light(on))
 
+    async def show_clock(self, style: int = 0, h24: bool = True, date: bool = False,
+                         color: tuple[int, int, int] = (255, 255, 255)) -> None:
+        await self._write(P.show_clock(style, h24, date, color))
+
     async def brightness(self, level: int) -> None:
         await self._write(P.set_brightness(level))
 
