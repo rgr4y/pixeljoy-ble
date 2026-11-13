@@ -238,7 +238,7 @@ def switch_light(on: bool) -> bytes:
 
 
 def set_brightness(level: int) -> bytes:
-    return frame(Cmd.SEND_BRIGHTNESS, bytes([max(1, min(255, level))]))
+    return frame(Cmd.SEND_BRIGHTNESS, bytes([max(1, min(100, level))]))  # percent; app slider max is 100
 
 
 def set_flip(flip_type: int) -> bytes:

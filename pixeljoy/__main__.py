@@ -167,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
                "exit codes: 0 ok, 1 error, 2 bad arguments, 130 interrupted\n"
                "`pixeljoy COMMAND -h` for command help. Docs: docs/USAGE.md")
     _add_globals(ap, suppress=False)
-    sub = ap.add_subparsers(dest="cmd", required=True, metavar="COMMAND")
+    sub = ap.add_subparsers(dest="cmd", metavar="COMMAND")
 
     def cmd(name: str, help: str, description: str, examples: list[str]) -> argparse.ArgumentParser:
         s = sub.add_parser(name, help=help, description=description, formatter_class=fmt,
@@ -193,9 +193,11 @@ def build_parser() -> argparse.ArgumentParser:
     s = cmd("power", "turn the display on or off", "Turn the display on or off.", ["power off", "power on"])
     s.add_argument("state", choices=["on", "off"])
 
-    s = cmd("brightness", "set brightness", "Set brightness. Minimum is 1; the panel's real maximum is unverified.",
-            ["brightness 1", "brightness 50"])
-    s.add_argument("level", type=int_range(1, 255), help="1-255")
+    s = cmd("brightness", "set brightness (percent, 1-100)",
+            "Set brightness as a percentage, 1-100. This is the same scale as the app's\n"
+            "brightness slider (0-100). The panel reads 0 back as 1, so 1 is the minimum.",
+            ["brightness 1     # dimmest", "brightness 50", "brightness 100   # full"])
+    s.add_argument("level", type=int_range(1, 100), metavar="PERCENT", help="1-100")
 
     s = cmd("text", "scroll text",
             "Render text on this machine (the panel has no fonts), upload it and show it.\n"
@@ -232,7 +234,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    args = build_parser().parse_args()
+    ap = build_parser()
+    args = ap.parse_args()
+    if args.cmd is None:
+        ap.print_help(sys.stderr)
+        sys.exit(2)
     level = logging.DEBUG if args.verbose else logging.WARNING if args.quiet else logging.INFO
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s")
     if not args.verbose:

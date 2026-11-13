@@ -55,7 +55,7 @@ pixeljoy time --tz Europe/London
 
 pixeljoy power off
 pixeljoy power on
-pixeljoy brightness 50                 # 1-255; the panel's real maximum is unverified
+pixeljoy brightness 50                 # percent, 1-100 (same scale as the app slider)
 
 pixeljoy text 'HELLO'
 pixeljoy text 'SALE' --color ff0000 --speed 80     # or --color '#ff0000'
@@ -87,7 +87,7 @@ otherwise 100. This is the same limit the vendor app enforces.
 |---|---|
 | 0 | OK |
 | 1 | Error: no panel found, BLE failure, timeout, or a rejected command. Prints `error: …`; add `-v` for the traceback. |
-| 2 | Bad arguments |
+| 2 | Bad arguments, or no command (prints the full help) |
 | 130 | Interrupted (Ctrl+C). The client disconnects first, so you can reconnect right away. |
 
 ## Troubleshooting

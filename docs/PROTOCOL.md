@@ -220,7 +220,7 @@ through §3.3 with the same cmd byte.
 | `0F` | PLAY_CAROUSEL | repeated `name_len name type play_cnt [FF switch_anim]` |
 | `10` | READ_PROPERTY | `01` |
 | `11` | SWITCH_LIGHT | `01` on / `00` off |
-| `13` | SEND_BRIGHTNESS | `level` (min 1; slider max unverified) |
+| `13` | SEND_BRIGHTNESS | `level`: percent, 1–100. The app sends the raw progress of a SeekBar with `android:max="100"` (`app_fragment_my.xml`). Read-back 0 is treated as 1. |
 | `15` | SET_FLIP | `flip_type` |
 | `1A` | MUSIC_RHYTHM | (not yet traced) |
 | `1D` | ADD_TO_CAROUSEL | `file_type name_len name` |
@@ -353,7 +353,8 @@ DIY animations send interval `450` and no mode tag.
 - [x] Capture the advertisement: `P0AF_A1B2`, UUID `c0af`, no manufacturer data.
 - [x] Confirm the handshake reply layout (`p[5]`, `p[6]`).
 - [x] Dump a `READ_PROPERTY` reply and decode the flags for this unit (§7).
-- [ ] Find the brightness range, the `SET_FLIP` values, and the `SHOW_TEXT` speed/mode ranges.
+- [x] Brightness range: 0–100 percent (app slider max 100).
+- [ ] Find the `SET_FLIP` values, and the `SHOW_TEXT` speed/mode ranges.
 - [ ] Check whether the firmware's PNG decoder accepts compressed IDAT or only stored blocks (level 0).
 - [ ] Trace `SHOW_CLOCK` (0x0D), timers (0x30–0x35) and the partition/effect-text commands.
 - [ ] IR remote (`SET_REMOTE`/`READ_REMOTE`) semantics.
