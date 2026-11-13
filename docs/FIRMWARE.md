@@ -559,16 +559,16 @@ and a reset would undo it. **Not tested.** A wrong value probably crashes the pa
 
   | key | action | key | action |
   |---|---|---|---|
-  | 01 | power / pause? (depends on mode, 0x1E1ED5A) | 0B | auto-off timer 8 h? (`[g+0x304] = 28800`) |
-  | 02 | carousel (mode 3) | 0C | auto-off timer 2 h? (`[g+0x30C] = 7200`) |
-  | 03 | ? (0x1E1EDBC, gated on `g+0x80`) | 0D, 0E, 0F | ? (0x1E1EDCC, resets remote state) |
+  | 01 | power / pause? (depends on mode, 0x1E1ED5A) | 0B | auto-off timer 8 h toggle? (`[g+0x304] = 28800`) |
+  | 02 | carousel (mode 3) | 0C | auto-off timer 2 h toggle? (`[g+0x30C] = 7200`) |
+  | 03 | **off** (confirmed on the remote) | 0D, 0E, 0F | ? (0x1E1EDCC, resets remote state) |
   | 04 | brightness +10 (max 100) | 10 | preset animation 1 (GIF mode, table `g+0x13B0`) |
   | 05 | flip toggle 0↔1 | 11 | preset 2 (`g+0x13BC`) |
-  | 06 | text mode 2 (text mode only) | 12 | preset 3 (`g+0x13C8`) |
+  | 06 | **right arrow** (confirmed); sets text mode 2 = scroll right | 12 | preset 3 (`g+0x13C8`) |
   | 07 | brightness −10 (min 10) | 13 | preset 4 (`g+0x13D4`) |
   | 08 | clock (mode 4) | 14 | preset 5 (`g+0x13E0`) |
-  | 09 | text mode 1 (text mode only) | 15 | preset 6 (`g+0x13EC`) |
-  | 0A | toggle `g+0x300`? (0x1E1EE86) | | |
+  | 09 | **left arrow** (confirmed); sets text mode 1 = scroll left | 15 | preset 6 (`g+0x13EC`) |
+  | 0A | **12 h auto-off timer toggle** (confirmed); flag `g+0x300` | | |
 
   Keys seen in the capture: `01 04 05 06 07 09 0D 0E`. The presets are `mar` material entries (car-window GIFs).
   Other remote types (`'U'` = type 4) use the second table at 0x1E1EC0E.

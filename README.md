@@ -59,7 +59,7 @@ local adapters and ESPHome proxies both work.
 - **Remote:** `event.<panel>_remote` fires for each key press on the 2.4 GHz `LZ` remote. These are
   passive BLE adverts with no connection, so presses arrive even when the panel is off. Repeated
   transmissions of the same press are dropped. Event types come from the firmware's key table:
-  `power`, `brightness_up`/`brightness_down`, `flip`, `clock`, `carousel`, `preset_1`..`preset_6` and others.
+  `power`, `off`, `left`, `right`, `brightness_up`/`brightness_down`, `flip`, `clock`, `carousel`, `preset_1`..`preset_6` and others.
 - **Connection:** the BLE link opens on demand and drops after 60 s idle, so the phone app can still connect.
 
 Install by copying the component, following the library symlink:
