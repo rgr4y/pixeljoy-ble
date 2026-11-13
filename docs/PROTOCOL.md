@@ -274,7 +274,8 @@ emoji : 02 | w | h | count | rgb      (w*h*3 bytes, RGB888)
 
 `count` is `01` (u8) normally, and `01 00` (u16 LE) if the panel sets the
 `support600Txt` property flag. The best guess is a frame or glyph count,
-always 1 here **(unverified)**.
+always 1 here **(unverified)**. The app caps text at 600 chars when the
+flag is set, else 100 (`AddOrEditTextActivity`: `isSupport600txt() ? 600 : 100`).
 
 Then send `SHOW_TEXT` (`0A`) with TLV properties. Each tag is followed by a
 1-byte length, **except tag 02, whose length is u16 LE**:
@@ -380,3 +381,11 @@ So for this unit:
   (`support600Txt`)
 * SHOW_TEXT must not send tags `0F` or `10`
 * multi-packet transfers send groups of 200 without waiting for `A3`/`A4`
+
+Clock sync on connect (`SET_TIME_ZONE` → `SYNC_TIME` → `START_SYNC_TIME`)
+is confirmed: the panel shows the right local time (America/Chicago). Each
+step is acked with `A1 <cmd> 01`. The handshake-1 reply's `p[5]` changes per
+connection (`04`, `00`, `05` seen).
+
+Unknown: right after the time sync, the panel sent `a9 01 04 01 b3 78`
+(head `A9`, cmd `01`, payload `01`) once. Not yet traced.
