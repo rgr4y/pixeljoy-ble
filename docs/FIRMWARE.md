@@ -412,6 +412,10 @@ Untraced: what `dw_update` does after that (§6).
 
 ## 6. Still unknown
 
+* **Confirmed on the panel after the update (2026-11-13):** `GET_FIRMWARE_VERSION` returns `1.9.6`. READ_PROPERTY
+  is 39 bytes, `01 20 10 03 00 00 0a 00 fd c8 ea 01 00…`: byte 10 = `0xEA`, byte 11 = `0x01`, flags `0xFD`,
+  packV2Num 200, all exactly as the code at 0x1E1F786 predicts. The handshake challenge `03 02` fits
+  `c1 = seed & 7`, `c2 = (seed/100) & 7`.
 * 1.8.5 vs 1.9.6 (the panel ran 1.8.5 until 2026-11-13 and runs 1.9.6 now). Known difference: READ_PROPERTY byte 10 is `0xEA` in
   1.9.6 (splice, horizontalReverse, carouselSwitchAnim, textBgColor, textAlign) but was `0x00` on the 1.8.5
   panel. Byte 11 is `0x01` (effectText). 1.9.6 builds 39 reply bytes; 40 were captured on 1.8.5. Bytes 8 bits 4–7
