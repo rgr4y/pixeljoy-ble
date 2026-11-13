@@ -20,7 +20,8 @@
 - Clock sync on connect is correct on the panel (America/Chicago).
 - The 100/600 limit was checked in the decompiled app (`AddOrEditTextActivity`: `isSupport600txt() ? 600 : 100`).
 - 23 unit tests pass.
-- Not checked: whether `--rainbow 1` looked like a rainbow on the panel, `gif`, and `--fit cover`.
+- `text --rainbow 1` shows rainbow text on the panel (Rob confirmed).
+- Not checked: `gif` and `--fit cover`.
 
 **Follow-up**
 - Unknown reply `a9 01 04 01` after the time sync (noted in PROTOCOL.md §7).
