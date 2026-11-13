@@ -704,11 +704,11 @@ REMOTE_LOCAL_NAME = "LZ"
 REMOTE_COMPANY_ID = 0x02CC  # manufacturer-data company id the remote uses
 
 # key code -> action, from the firmware's type-3 ("LZ") table at 0x1E1EB7E.
-# off/left/right/timer_12h confirmed by pressing the remote (2026-11-13); the rest are named from the handler code.
+# off/left/right/timer_12h/button_1-3 confirmed by pressing the remote (2026-11-13); the rest are named from the handler code.
 REMOTE_KEYS: dict[int, str] = {
     0x01: "power", 0x02: "carousel", 0x03: "off", 0x04: "brightness_up", 0x05: "flip",
     0x06: "right", 0x07: "brightness_down", 0x08: "clock", 0x09: "left", 0x0A: "timer_12h",
-    0x0B: "timer_8h", 0x0C: "timer_2h", 0x0D: "key_0d", 0x0E: "key_0e", 0x0F: "key_0f",
+    0x0B: "timer_8h", 0x0C: "timer_2h", 0x0D: "button_1", 0x0E: "button_2", 0x0F: "button_3",
     0x10: "preset_1", 0x11: "preset_2", 0x12: "preset_3", 0x13: "preset_4", 0x14: "preset_5", 0x15: "preset_6",
 }
 

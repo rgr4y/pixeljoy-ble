@@ -561,7 +561,7 @@ and a reset would undo it. **Not tested.** A wrong value probably crashes the pa
   |---|---|---|---|
   | 01 | power / pause? (depends on mode, 0x1E1ED5A) | 0B | auto-off timer 8 h toggle? (`[g+0x304] = 28800`) |
   | 02 | carousel (mode 3) | 0C | auto-off timer 2 h toggle? (`[g+0x30C] = 7200`) |
-  | 03 | **off** (confirmed on the remote) | 0D, 0E, 0F | ? (0x1E1EDCC, resets remote state) |
+  | 03 | **off** (confirmed on the remote) | 0D, 0E, 0F | **buttons 1, 2, 3** (confirmed labels); all three go to the same handler 0x1E1EDCC (sets remote-state flags), so the action is decided later from the key byte |
   | 04 | brightness +10 (max 100) | 10 | preset animation 1 (GIF mode, table `g+0x13B0`) |
   | 05 | flip toggle 0↔1 | 11 | preset 2 (`g+0x13BC`) |
   | 06 | **right arrow** (confirmed); sets text mode 2 = scroll right | 12 | preset 3 (`g+0x13C8`) |
