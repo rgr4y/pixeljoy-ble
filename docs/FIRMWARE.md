@@ -1,8 +1,9 @@
 # PixelJoy P0AF firmware: BLE command handler
 
 Static analysis of the **1.9.6** OTA image (`P0AF_fw_1.9.6.bin`, decrypted with `tools/jl_fw_decrypt.py`).
-The test panel runs **1.8.5**, so anything here can differ on that panel. Nothing was flashed or sent to
-the panel for this work.
+The test panel ran **1.8.5** until 2026-11-13. Rob then updated it to **1.9.6** with the vendor app, so
+this analysis now matches the running firmware. Observations marked "1.8.5" (UART log, §7 of PROTOCOL.md)
+were made before the update. Nothing was flashed through our own tooling.
 
 How claims are marked:
 
@@ -268,7 +269,7 @@ firmware gives no zone content types to recover. READ_PROPERTY still hardcodes t
 bit (§5e).
 
 **Guess:** the app's partition feature (types 2/3/6/7) targets other models, or firmware other than this
-1.9.6. Whether 1.8.5, which runs on the panel, has a handler is unknown.
+1.9.6. Whether 1.8.5 had a handler is unknown, and that version is no longer on the panel.
 
 ### c. Drawing board (02/03/04)
 
@@ -411,7 +412,7 @@ Untraced: what `dw_update` does after that (§6).
 
 ## 6. Still unknown
 
-* The panel runs **1.8.5**; all of this is from 1.9.6. Known difference: READ_PROPERTY byte 10 is `0xEA` in
+* 1.8.5 vs 1.9.6 (the panel ran 1.8.5 until 2026-11-13 and runs 1.9.6 now). Known difference: READ_PROPERTY byte 10 is `0xEA` in
   1.9.6 (splice, horizontalReverse, carouselSwitchAnim, textBgColor, textAlign) but was `0x00` on the 1.8.5
   panel. Byte 11 is `0x01` (effectText). 1.9.6 builds 39 reply bytes; 40 were captured on 1.8.5. Bytes 8 bits 4–7
   (remote, noRespA4, multiScreen, 600Txt) are hard-coded on.

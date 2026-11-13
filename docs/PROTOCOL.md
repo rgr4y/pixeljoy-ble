@@ -364,7 +364,8 @@ DIY animations send interval `450` and no mode tag.
 
 ## 7. Hardware captures
 
-**P0AF_A1B2**: 32×16, `GET_FIRMWARE_VERSION` → 1.8.5, macOS/CoreBluetooth, MTU 512.
+**P0AF_A1B2**: 32×16, `GET_FIRMWARE_VERSION` → 1.8.5, macOS/CoreBluetooth, MTU 512. These captures are from
+1.8.5. The panel runs 1.9.6 since 2026-11-13, where READ_PROPERTY byte 10 is expected to be `0xEA` ([FIRMWARE.md](FIRMWARE.md) §6).
 
 ```
 handshake 1 reply payload : 43 43 48 49 50 04 05
@@ -407,7 +408,7 @@ On 2026-11-12, for P0AF with `otaNumber` 1.0.0:
 
 | Class | Latest | Size | MD5 | Contents |
 |---|---|---|---|---|
-| 1 firmware | 1.9.6 (panel runs 1.8.5) | 302 KB | `e5731d33…` | JieLi ENC with the fixed key `0xB107`; decrypt with `tools/jl_fw_decrypt.py` |
+| 1 firmware | 1.9.6 (panel updated from 1.8.5 to 1.9.6 via the vendor app on 2026-11-13) | 302 KB | `e5731d33…` | JieLi ENC with the fixed key `0xB107`; decrypt with `tools/jl_fw_decrypt.py` |
 | 2 material | 1.2.1 | 822 KB | `2cb29106…` | plain container of 73 GIF89a files, see below |
 | 3 comms | none | – | – | `updateEnable` 2 |
 
