@@ -32,9 +32,17 @@ def render_glyphs(text: str, height: int = 16, font_path: str | None = None, thr
     return glyphs
 
 
-def image_to_png(path: str, width: int, height: int) -> bytes:
-    from PIL import Image
+def image_to_png(path: str, width: int, height: int, fit: str = "stretch") -> bytes:
+    """``fit``: stretch (ignore aspect), contain (letterbox in black), cover (crop to fill)."""
+    from PIL import Image, ImageOps
 
-    img = Image.open(path).convert("RGB").resize((width, height), Image.LANCZOS)
+    img = Image.open(path).convert("RGB")
+    size, lanczos = (width, height), Image.LANCZOS
+    if fit == "contain":
+        img = ImageOps.pad(img, size, lanczos, color=(0, 0, 0))
+    elif fit == "cover":
+        img = ImageOps.fit(img, size, lanczos)
+    else:
+        img = img.resize(size, lanczos)
     px = img.load()
     return simple_png([[px[x, y] for x in range(width)] for y in range(height)])

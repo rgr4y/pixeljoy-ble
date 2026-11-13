@@ -1,7 +1,6 @@
 """Async BLE client for PixelJoy panels (bleak).
 
-Untested against hardware so far. Every TX/RX frame is logged at DEBUG level
-so first contact with a real panel produces a usable trace.
+Every TX/RX frame is logged at DEBUG level (``-v`` on the CLI).
 """
 
 from __future__ import annotations
@@ -16,6 +15,10 @@ from bleak.backends.device import BLEDevice
 from . import protocol as P
 
 log = logging.getLogger("pixeljoy")
+
+
+class PixelJoyError(RuntimeError):
+    pass
 
 
 @dataclass
@@ -40,8 +43,26 @@ async def scan(timeout: float = 8.0, show_all: bool = False) -> list[Found]:
     return out
 
 
-class PixelJoyError(RuntimeError):
-    pass
+async def find(timeout: float = 8.0, address: str | None = None, name: str | None = None) -> Found:
+    """Return the first matching panel; stops scanning as soon as one is seen."""
+    models = P.load_models()
+    hit: list[Found] = []
+
+    def match(dev: BLEDevice, adv) -> bool:
+        adv_name = adv.local_name or dev.name
+        if address and dev.address.lower() != address.lower():
+            return False
+        if name and name.lower() not in (adv_name or "").lower():
+            return False
+        model = P.match_model(adv_name, adv.service_uuids, models)
+        if model:
+            hit.append(Found(dev, adv_name, adv.rssi, list(adv.service_uuids), dict(adv.manufacturer_data), model))
+        return model is not None
+
+    if await BleakScanner.find_device_by_filter(match, timeout=timeout) is None:
+        raise PixelJoyError("no PixelJoy panel found (is the phone app connected? try `scan --all`)")
+    return hit[-1]
+
 
 
 async def dump_gatt(address: str | BLEDevice) -> None:
@@ -79,7 +100,11 @@ class PixelJoy:
         return self
 
     async def __aexit__(self, *exc) -> None:
-        await self._client.disconnect()
+        # Cleanup must not hang or mask the original error (e.g. on Ctrl+C).
+        try:
+            await asyncio.wait_for(self._client.disconnect(), 5)
+        except Exception as e:  # noqa: BLE001
+            log.debug("disconnect failed: %r", e)
 
     def _on_notify(self, _char, data: bytearray) -> None:
         log.debug("RX %s", bytes(data).hex(" "))
@@ -111,6 +136,18 @@ class PixelJoy:
             if reply.head in heads and (cmd is None or reply.cmd == cmd):
                 return reply
             log.debug("ignoring reply head=%02X cmd=%02X", reply.head, reply.cmd)
+
+    async def drain(self, seconds: float) -> list[P.Reply]:
+        """Collect every reply that arrives within ``seconds``."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + seconds
+        out = []
+        while (remaining := deadline - loop.time()) > 0:
+            try:
+                out.append(await asyncio.wait_for(self._rx.get(), remaining))
+            except asyncio.TimeoutError:
+                break
+        return out
 
     async def request(self, data: bytes, cmd: int, timeout: float = 5.0) -> P.Reply:
         await self._write(data)
