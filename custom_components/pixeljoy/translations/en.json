@@ -14,8 +14,10 @@
     },
     "abort": {
       "already_configured": "This panel is already configured",
-      "no_devices_found": "No PixelJoy panels in range",
-      "not_supported": "Not a supported PixelJoy panel"
+      "no_devices_found": "No PixelJoy panels in range. Check that the panel is powered and close the PixelJoy phone app: a panel connected to the app may stop advertising.",
+      "not_supported": "Not a supported PixelJoy panel",
+      "all_configured": "Every PixelJoy panel in range is already set up. See Settings → Devices & services → PixelJoy LED Panel.",
+      "no_connectable": "A PixelJoy panel is in range, but only passive Bluetooth scanners see it. Setup needs a connectable adapter or an ESPHome Bluetooth proxy in active mode near the panel."
     }
   },
   "entity": {

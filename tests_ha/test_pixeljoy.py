@@ -42,6 +42,31 @@ async def test_discovery_rejects_wrong_name(hass, mock_bluetooth):
     assert result["type"] == "abort" and result["reason"] == "not_supported"
 
 
+
+def _discovered(*infos):
+    """Stand-in for async_discovered_service_info: connectable=True returns only connectable sightings."""
+    return lambda hass, connectable=True: [i for i in infos if i.connectable or not connectable]
+
+
+@pytest.mark.parametrize(("infos", "configured", "reason"), [
+    ((), False, "no_devices_found"),
+    ((PANEL_INFO,), True, "all_configured"),
+    ((_info("P0AF_A1B2", PANEL, uuids=["0000c0af-0000-1000-8000-00805f9b34fb"], connectable=False),), False, "no_connectable"),
+])
+async def test_user_step_abort_reasons(hass, mock_bluetooth, infos, configured, reason):
+    if configured:
+        MockConfigEntry(domain=DOMAIN, unique_id=PANEL, data={CONF_ADDRESS: PANEL, CONF_MODEL: "P0AF_XXX"}).add_to_hass(hass)
+    with patch("custom_components.pixeljoy.config_flow.async_discovered_service_info", _discovered(*infos)):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert result["type"] == "abort" and result["reason"] == reason
+
+
+async def test_user_step_lists_new_panel(hass, mock_bluetooth):
+    with patch("custom_components.pixeljoy.config_flow.async_discovered_service_info", _discovered(PANEL_INFO)):
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert result["type"] == "form" and result["step_id"] == "user"
+
+
 @pytest.fixture
 async def panel_entry(hass, mock_bluetooth):
     entry = MockConfigEntry(domain=DOMAIN, unique_id=PANEL, title="P0AF_A1B2",
