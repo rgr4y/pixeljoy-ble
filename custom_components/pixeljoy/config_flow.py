@@ -59,10 +59,16 @@ class PixelJoyConfigFlow(ConfigFlow, domain=DOMAIN):
 
         self._models = await self.hass.async_add_executor_job(P.load_models)
         configured = self._async_current_ids(include_ignore=False)
-        for info in async_discovered_service_info(self.hass, connectable=True):
-            if info.address not in configured and _model(info, self._models):
+        connectable = {i.address for i in async_discovered_service_info(self.hass, connectable=True)}
+        seen = [i for i in async_discovered_service_info(self.hass, connectable=False) if _model(i, self._models)]
+        for info in seen:
+            if info.address in connectable and info.address not in configured:
                 self._found[info.address] = info
         if not self._found:
+            if seen and all(i.address in configured for i in seen):
+                return self.async_abort(reason="all_configured")
+            if seen:
+                return self.async_abort(reason="no_connectable")
             return self.async_abort(reason="no_devices_found")
         return self.async_show_form(
             step_id="user",
