@@ -67,6 +67,15 @@ async def test_user_step_lists_new_panel(hass, mock_bluetooth):
     assert result["type"] == "form" and result["step_id"] == "user"
 
 
+
+async def test_removing_entry_rediscovers_panel(hass, mock_bluetooth):
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=PANEL, data={CONF_ADDRESS: PANEL, CONF_MODEL: "P0AF_XXX"})
+    entry.add_to_hass(hass)
+    with patch("custom_components.pixeljoy.async_rediscover_address") as rediscover:
+        await hass.config_entries.async_remove(entry.entry_id)
+    rediscover.assert_called_once_with(hass, PANEL)
+
+
 @pytest.fixture
 async def panel_entry(hass, mock_bluetooth):
     entry = MockConfigEntry(domain=DOMAIN, unique_id=PANEL, title="P0AF_A1B2",

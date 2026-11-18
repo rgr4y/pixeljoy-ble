@@ -1,11 +1,12 @@
 """PixelJoy LED panel integration (BLE).
 
-Protocol, firmware notes and the CLI live in the parent repo; the `pixeljoy/` package inside this
-component is the same library (symlinked in the repo, copied on install).
+Protocol, firmware notes and the CLI live in the parent repo; the `pixeljoy` library is installed
+from PyPI (`pixeljoy-ble`, pinned in manifest.json).
 """
 
 from __future__ import annotations
 
+from homeassistant.components.bluetooth import async_rediscover_address
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, CONF_MODEL, Platform
 from homeassistant.core import HomeAssistant
@@ -33,3 +34,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: PixelJoyConfigEntry) ->
     if ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         await entry.runtime_data.disconnect()
     return ok
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: PixelJoyConfigEntry) -> None:
+    """Let the panel show up under Discovered again without restarting HA."""
+    async_rediscover_address(hass, entry.data[CONF_ADDRESS])
