@@ -23,8 +23,8 @@ from .const import (
     SERVICE_SYNC_TIME,
 )
 from .entity import PixelJoyEntity
-from .pixeljoy import protocol as P
-from .pixeljoy.client import PixelJoy
+from pixeljoy import protocol as P
+from pixeljoy.client import PixelJoy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,7 +137,7 @@ class PixelJoyLight(PixelJoyEntity, LightEntity):
         return p
 
     async def async_show_text(self, text: str, color, speed: int, rainbow: int | None = None) -> None:
-        from .pixeljoy.render import render_glyphs
+        from pixeljoy.render import render_glyphs
 
         props = self.panel.properties
         limit = 600 if props is None or props.support_600_txt else 100
@@ -151,7 +151,7 @@ class PixelJoyLight(PixelJoyEntity, LightEntity):
         await self.panel.run(lambda c: c.show_clock(style - 1, hour_24, show_date, tuple(color)))
 
     async def async_show_image(self, path: str, fit: str) -> None:
-        from .pixeljoy.render import image_to_png
+        from pixeljoy.render import image_to_png
 
         p = await self.hass.async_add_executor_job(self._allowed_file, path)
         m = self.panel.model

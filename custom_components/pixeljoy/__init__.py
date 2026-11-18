@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
 
 from .panel import PixelJoyPanel
-from .pixeljoy import protocol as P
+from pixeljoy import protocol as P
 
 PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.LIGHT]
 

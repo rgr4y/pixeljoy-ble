@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PixelJoyConfigEntry
 from .entity import PixelJoyEntity
-from .pixeljoy.client import PixelJoy
+from pixeljoy.client import PixelJoy
 
 # The remote's car signs are GIFs in the material pack (rem_0..rem_5), which the app cannot reach over BLE.
 # Extract them once with tools/material_extract.py and copy rem_*.gif here; the buttons upload and play them.

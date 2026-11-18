@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS, CONF_MODEL
 
 from .const import DOMAIN
-from .pixeljoy import protocol as P
+from pixeljoy import protocol as P
 
 
 def _model(info: BluetoothServiceInfoBleak, models: list[P.Model]) -> P.Model | None:

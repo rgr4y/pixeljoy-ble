@@ -19,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PixelJoyConfigEntry
 from .entity import PixelJoyEntity
-from .pixeljoy import protocol as P
+from pixeljoy import protocol as P
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: PixelJoyConfigEntry, async_add_entities: AddEntitiesCallback) -> None:

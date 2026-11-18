@@ -99,14 +99,16 @@ local adapters and ESPHome proxies both work.
   `power`, `off`, `left`, `right`, `brightness_up`/`brightness_down`, `flip`, `clock`, `carousel`, `timer_12h`, `button_1`..`button_3` and the six car signs (`sign_left`, `sign_right`, `sign_warning`, ...).
 - **Connection:** the BLE link opens on demand and drops after 60 s idle, so the phone app can still connect.
 
-Install by copying the component, following the library symlink:
+**Install (Home Assistant 2026.11+ Marketplace):**
 
-```sh
-rsync -aL custom_components/pixeljoy/ root@<ha-host>:/config/custom_components/pixeljoy/
-```
+1. Settings → Marketplace → ⋮ → Custom repositories.
+2. Add `https://github.com/rgr4y/pixeljoy-ble`, type **Integration**.
+3. Install **PixelJoy LED Panel**, restart Home Assistant. Panels in range are offered for setup automatically.
+
+The component imports the library from PyPI (`pixeljoy-ble`, pinned in `manifest.json`). HA installs it on first load.
 
 Tests run against a real HA core with BLE mocked:
-`pip install pytest-homeassistant-custom-component` then `pytest tests_ha -o asyncio_mode=auto`.
+`pip install -e . pytest-homeassistant-custom-component` then `pytest tests_ha -o asyncio_mode=auto`.
 
 ## Layout
 
@@ -122,7 +124,8 @@ Tests run against a real HA core with BLE mocked:
 | `tools/patch_apk.py` | rebuild the vendor app without telemetry for personal use (`--offline` also drops INTERNET); see `docs/APP_PRIVACY.md` |
 | `docs/APP_PRIVACY.md` | what the app sends home (hardware device ID on every request, IP geolocation, Tencent cloud speech) and what the patch removes |
 | `tests/` | unit tests for the encoders (`pytest`) |
-| `custom_components/pixeljoy/` | Home Assistant integration (`pixeljoy/` inside it is a symlink to the library) |
+| `custom_components/pixeljoy/` | Home Assistant integration (imports the `pixeljoy-ble` library from PyPI) |
+| `hacs.json` | Marketplace (HACS) metadata |
 | `tests_ha/` | HA integration tests (`pytest-homeassistant-custom-component`) |
 
 ## License
