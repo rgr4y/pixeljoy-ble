@@ -1,7 +1,6 @@
 """Async BLE client for PixelJoy panels (bleak).
 
-Untested against hardware so far. Every TX/RX frame is logged at DEBUG level
-so first contact with a real panel produces a usable trace.
+Every TX/RX frame is logged at DEBUG level (``-v`` on the CLI).
 """
 
 from __future__ import annotations
@@ -16,6 +15,10 @@ from bleak.backends.device import BLEDevice
 from . import protocol as P
 
 log = logging.getLogger("pixeljoy")
+
+
+class PixelJoyError(RuntimeError):
+    pass
 
 
 @dataclass
@@ -40,8 +43,26 @@ async def scan(timeout: float = 8.0, show_all: bool = False) -> list[Found]:
     return out
 
 
-class PixelJoyError(RuntimeError):
-    pass
+async def find(timeout: float = 8.0, address: str | None = None, name: str | None = None) -> Found:
+    """Return the first matching panel; stops scanning as soon as one is seen."""
+    models = P.load_models()
+    hit: list[Found] = []
+
+    def match(dev: BLEDevice, adv) -> bool:
+        adv_name = adv.local_name or dev.name
+        if address and dev.address.lower() != address.lower():
+            return False
+        if name and name.lower() not in (adv_name or "").lower():
+            return False
+        model = P.match_model(adv_name, adv.service_uuids, models)
+        if model:
+            hit.append(Found(dev, adv_name, adv.rssi, list(adv.service_uuids), dict(adv.manufacturer_data), model))
+        return model is not None
+
+    if await BleakScanner.find_device_by_filter(match, timeout=timeout) is None:
+        raise PixelJoyError("no PixelJoy panel found (is the phone app connected? try `scan --all`)")
+    return hit[-1]
+
 
 
 async def dump_gatt(address: str | BLEDevice) -> None:
@@ -79,7 +100,11 @@ class PixelJoy:
         return self
 
     async def __aexit__(self, *exc) -> None:
-        await self._client.disconnect()
+        # Cleanup must not hang or mask the original error (e.g. on Ctrl+C).
+        try:
+            await asyncio.wait_for(self._client.disconnect(), 5)
+        except Exception as e:  # noqa: BLE001
+            log.debug("disconnect failed: %r", e)
 
     def _on_notify(self, _char, data: bytearray) -> None:
         log.debug("RX %s", bytes(data).hex(" "))
@@ -112,14 +137,30 @@ class PixelJoy:
                 return reply
             log.debug("ignoring reply head=%02X cmd=%02X", reply.head, reply.cmd)
 
+    async def drain(self, seconds: float) -> list[P.Reply]:
+        """Collect every reply that arrives within ``seconds``."""
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + seconds
+        out = []
+        while (remaining := deadline - loop.time()) > 0:
+            try:
+                out.append(await asyncio.wait_for(self._rx.get(), remaining))
+            except asyncio.TimeoutError:
+                break
+        return out
+
     async def request(self, data: bytes, cmd: int, timeout: float = 5.0) -> P.Reply:
         await self._write(data)
         return await self._expect(cmd=cmd, timeout=timeout)
 
     # -- session ----------------------------------------------------------
 
-    async def connect(self) -> None:
+    async def _open(self) -> None:
+        """Connect the BLE link. Hosts with their own connection logic (Home Assistant) override this."""
         await self._client.connect()
+
+    async def connect(self) -> None:
+        await self._open()
         log.info("connected, mtu=%s", self.mtu)
         char = self._client.services.get_characteristic(self.model.write_uuid)
         if char is None:
@@ -163,6 +204,10 @@ class PixelJoy:
 
     async def power(self, on: bool) -> None:
         await self._write(P.switch_light(on))
+
+    async def show_clock(self, style: int = 0, h24: bool = True, date: bool = False,
+                         color: tuple[int, int, int] = (255, 255, 255)) -> None:
+        await self._write(P.show_clock(style, h24, date, color))
 
     async def brightness(self, level: int) -> None:
         await self._write(P.set_brightness(level))
@@ -227,6 +272,25 @@ class PixelJoy:
             await self.send_multi(frames, expect_file_reply=False)
         else:
             await self._write(frames[0])
+
+    async def read_carousel(self) -> list[P.CarouselItem]:
+        """The panel's carousel list (replies: "start", item frames, "end")."""
+        await self._write(P.frame(P.Cmd.READ_CAROUSEL_LIST, b"\x01"))
+        items: list[P.CarouselItem] = []
+        while True:
+            got = P.parse_carousel_list((await self._expect(cmd=P.Cmd.READ_CAROUSEL_LIST)).payload)
+            if got == "end":
+                return items
+            if isinstance(got, list):
+                items += got
+
+    async def resume_carousel(self) -> list[P.CarouselItem]:
+        """Play the stored carousel. PLAY_CAROUSEL replaces the list, so read it and send it back."""
+        items = await self.read_carousel()
+        if not items:
+            raise PixelJoyError("the panel's carousel is empty; add items in the app first")
+        await self._send_cmd(P.Cmd.PLAY_CAROUSEL, P.play_carousel_payload(items))
+        return items
 
     async def show_png(self, png: bytes, name: str | None = None) -> None:
         name = name or P.file_name("img")

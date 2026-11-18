@@ -7,6 +7,7 @@ in the decompiled vendor app.
 from __future__ import annotations
 
 import datetime as _dt
+import functools
 import json
 import random
 import struct
@@ -233,12 +234,23 @@ def read_property() -> bytes:
     return frame(Cmd.READ_PROPERTY, b"\x01")
 
 
+CLOCK_STYLES = ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
+
+
+def show_clock(style: int = 0, h24: bool = True, date: bool = False, color: tuple[int, int, int] = (255, 255, 255)) -> bytes:
+    """Firmware-drawn clock (ClockActivity.buildClockDisplayData). ``style`` is 0-based (0-9)."""
+    # Firmware has no bounds check: style >= 10 writes digits outside the framebuffer (docs/FIRMWARE.md §5a)
+    if not 0 <= style < len(CLOCK_STYLES):
+        raise ValueError(f"clock style {style} out of range 0-{len(CLOCK_STYLES) - 1}")
+    return frame(Cmd.SHOW_CLOCK, bytes([style, int(h24), int(date), *color]))
+
+
 def switch_light(on: bool) -> bytes:
     return frame(Cmd.SWITCH_LIGHT, bytes([1 if on else 0]))
 
 
 def set_brightness(level: int) -> bytes:
-    return frame(Cmd.SEND_BRIGHTNESS, bytes([max(1, min(255, level))]))
+    return frame(Cmd.SEND_BRIGHTNESS, bytes([max(1, min(100, level))]))  # percent; app slider max is 100
 
 
 def set_flip(flip_type: int) -> bytes:
@@ -661,7 +673,9 @@ class Model:
     dual_chips: int
 
 
+@functools.cache
 def load_models() -> list[Model]:
+    """Model table (cached; first call reads devices.json, so hosts with an event loop call it in a worker)."""
     data = json.loads(resources.files(__package__).joinpath("devices.json").read_text())
     return [
         Model(e["name"], e["pid"], e["width"], e["height"], e["chip"], uuid16(e["scan_uuid16"]),
@@ -680,3 +694,80 @@ def match_model(adv_name: str | None, service_uuids: Iterable[str], models: list
         if (adv_name == m.name or m.pid in adv_name) and m.scan_uuid[4:8] in uuids:
             return m
     return None
+
+
+
+# ---------------------------------------------------------------------------
+# Carousel (READ_CAROUSEL_LIST 1F / PLAY_CAROUSEL 0F)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CarouselItem:
+    name: str
+    type: int      # device file type as the panel reports it (sent back unchanged)
+    play_cnt: int
+
+
+def parse_carousel_list(payload: bytes) -> list[CarouselItem] | str:
+    """One A1 1F reply: "start" / "end" markers (plus one trailing byte), or ``[len name type cnt]...``."""
+    if payload[:-1] in (b"start", b"end"):
+        return payload[:-1].decode()
+    items, i = [], 0
+    while i < len(payload):
+        n = payload[i]
+        if i + 1 + n + 2 > len(payload):
+            break
+        name = payload[i + 1 : i + 1 + n].decode("utf-8", "replace")
+        items.append(CarouselItem(name, payload[i + 1 + n], payload[i + 2 + n]))
+        i += n + 3
+    return items
+
+
+def play_carousel_payload(items: Sequence[CarouselItem]) -> bytes:
+    """``[len name type cnt]...`` (DeviceCommand.playCarousel); switch animation left at the default."""
+    out = bytearray()
+    for it in items:
+        name = it.name.encode()
+        out += bytes([len(name)]) + name + bytes([it.type & 0xFF, it.play_cnt & 0xFF])
+    return bytes(out)
+
+# ---------------------------------------------------------------------------
+# "LZ" 2.4 GHz remote (BLE adverts, no connection) -- docs/FIRMWARE.md §9
+# ---------------------------------------------------------------------------
+
+REMOTE_LOCAL_NAME = "LZ"
+REMOTE_COMPANY_ID = 0x02CC  # manufacturer-data company id the remote uses
+
+# key code -> action, from the firmware's type-3 ("LZ") table at 0x1E1EB7E.
+# off/left/right/timer_12h/button_1-3/sign_* confirmed by pressing the remote (2026-11-13); the rest are named from the handler code.
+REMOTE_KEYS: dict[int, str] = {
+    0x01: "power", 0x02: "carousel", 0x03: "off", 0x04: "brightness_up", 0x05: "flip",
+    0x06: "right", 0x07: "brightness_down", 0x08: "clock", 0x09: "left", 0x0A: "timer_12h",
+    0x0B: "timer_8h", 0x0C: "timer_2h", 0x0D: "button_1", 0x0E: "button_2", 0x0F: "button_3",
+    0x10: "sign_left", 0x11: "sign_no_high_beam", 0x12: "sign_right", 0x13: "sign_warning", 0x14: "sign_baby", 0x15: "sign_no_horn",
+}
+
+
+@dataclass(frozen=True)
+class RemotePress:
+    remote_id: str  # 4 hex bytes the panel pairs on (low address bytes, as sent: e.g. "66554433")
+    seq: int        # rolling counter; one press is repeated with the same or rising seq
+    key: int
+
+    @property
+    def action(self) -> str:
+        return REMOTE_KEYS.get(self.key, f"key_{self.key:02x}")
+
+
+def parse_remote_advert(local_name: str | None, manufacturer_data: dict[int, bytes], address: str) -> RemotePress | None:
+    """Decode an LZ remote advert: name "LZ", company 0x02CC data ``seq id(2) key 00 00 chk(2)``.
+
+    ``address`` is the advertiser's MAC (``11:22:33:44:55:66``); the panel matches the 4 bytes
+    after the first two, low byte first. Returns None for anything that is not an LZ key packet.
+    """
+    data = manufacturer_data.get(REMOTE_COMPANY_ID)
+    if local_name != REMOTE_LOCAL_NAME or not data or len(data) < 4:
+        return None
+    mac = bytes.fromhex(address.replace(":", "").replace("-", ""))[::-1]  # LE order as on air
+    return RemotePress(remote_id=mac[:4].hex(), seq=data[0], key=data[3])

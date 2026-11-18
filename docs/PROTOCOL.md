@@ -215,12 +215,12 @@ through §3.3 with the same cmd byte.
 | `0A` | SHOW_TEXT | TLV, §4.2 |
 | `0B` | SHOW_IMG | TLV, §4.3 |
 | `0C` | SHOW_GIF | TLV, §4.3 |
-| `0D` | SHOW_CLOCK | (not yet traced) |
+| `0D` | SHOW_CLOCK | `style 24h date r g b`: style 0–9 (the app's 10 clock styles; `clock_*_gif3216.gif` are only picker previews), `24h` 1 = 24-hour, `date` 1 = show the date, then the digit colour (`ClockActivity.buildClockDisplayData`). The firmware draws the time from its own RTC. Confirmed on P0AF: style 2 with 12 h and date on shows the real time in 12-hour format, plays the style's animation along the bottom (as in its preview GIF), and swaps to the date for about 5 s every 10–15 s (rough, by eye). The payload has no field for the date timing. Style 10 (one past the app's range) is acked with `A1 0D 01` but leaves the screen blank, so an ack does not mean the style exists. |
 | `0E` | STOPWATCH | `1`..`5` (start/pause/reset/…, exact mapping unverified) |
 | `0F` | PLAY_CAROUSEL | repeated `name_len name type play_cnt [FF switch_anim]` |
 | `10` | READ_PROPERTY | `01` |
 | `11` | SWITCH_LIGHT | `01` on / `00` off |
-| `13` | SEND_BRIGHTNESS | `level` (min 1; slider max unverified) |
+| `13` | SEND_BRIGHTNESS | `level`: percent, 1–100. The app sends the raw progress of a SeekBar with `android:max="100"` (`app_fragment_my.xml`). Read-back 0 is treated as 1. |
 | `15` | SET_FLIP | `flip_type` |
 | `1A` | MUSIC_RHYTHM | (not yet traced) |
 | `1D` | ADD_TO_CAROUSEL | `file_type name_len name` |
@@ -241,7 +241,7 @@ through §3.3 with the same cmd byte.
 | `42` | GET_RESOURCE_VERSION | `01` |
 | `44` | SET_DEVICE_LOCK | `01 06 <6-char pwd>` lock / `00` unlock |
 | `45` | SET_MULTI_PACK_V2 | `enable n` |
-| `48` | SET_REMOTE | `id 01 param` (IR remote) |
+| `48` | SET_REMOTE | `01 x mode` enable / `02` forget the paired remote. The remote is 2.4 GHz BLE adverts, not IR ([FIRMWARE.md](FIRMWARE.md) §9) |
 | `49` | READ_REMOTE | `01` |
 | `4A` | START_SYNC_TIME | `01` |
 | `4B` | SHOW_SPLICE_NUM | |
@@ -274,7 +274,8 @@ emoji : 02 | w | h | count | rgb      (w*h*3 bytes, RGB888)
 
 `count` is `01` (u8) normally, and `01 00` (u16 LE) if the panel sets the
 `support600Txt` property flag. The best guess is a frame or glyph count,
-always 1 here **(unverified)**.
+always 1 here **(unverified)**. The app caps text at 600 chars when the
+flag is set, else 100 (`AddOrEditTextActivity`: `isSupport600txt() ? 600 : 100`).
 
 Then send `SHOW_TEXT` (`0A`) with TLV properties. Each tag is followed by a
 1-byte length, **except tag 02, whose length is u16 LE**:
@@ -352,16 +353,19 @@ DIY animations send interval `450` and no mode tag.
 - [x] Capture the advertisement: `P0AF_A1B2`, UUID `c0af`, no manufacturer data.
 - [x] Confirm the handshake reply layout (`p[5]`, `p[6]`).
 - [x] Dump a `READ_PROPERTY` reply and decode the flags for this unit (§7).
-- [ ] Find the brightness range, the `SET_FLIP` values, and the `SHOW_TEXT` speed/mode ranges.
+- [x] Brightness range: 0–100 percent (app slider max 100).
+- [ ] Find the `SET_FLIP` values, and the `SHOW_TEXT` speed/mode ranges.
 - [ ] Check whether the firmware's PNG decoder accepts compressed IDAT or only stored blocks (level 0).
-- [ ] Trace `SHOW_CLOCK` (0x0D), timers (0x30–0x35) and the partition/effect-text commands.
-- [ ] IR remote (`SET_REMOTE`/`READ_REMOTE`) semantics.
+- [x] `SHOW_CLOCK` (0x0D): confirmed on hardware.
+- [ ] Trace timers (0x30–0x35) and the partition/effect-text commands.
+- [x] Remote (`SET_REMOTE`/`READ_REMOTE`): a BLE-advert (2.4 GHz) remote, not IR. See FIRMWARE.md §9.
 
 ---
 
 ## 7. Hardware captures
 
-**P0AF_A1B2**: 32×16, `GET_FIRMWARE_VERSION` → 1.8.5, macOS/CoreBluetooth, MTU 512.
+**P0AF_A1B2**: 32×16, `GET_FIRMWARE_VERSION` → 1.8.5, macOS/CoreBluetooth, MTU 512. These captures are from
+1.8.5. The panel runs 1.9.6 since 2026-11-13, where READ_PROPERTY byte 10 is expected to be `0xEA` ([FIRMWARE.md](FIRMWARE.md) §6).
 
 ```
 handshake 1 reply payload : 43 43 48 49 50 04 05
@@ -380,3 +384,59 @@ So for this unit:
   (`support600Txt`)
 * SHOW_TEXT must not send tags `0F` or `10`
 * multi-packet transfers send groups of 200 without waiting for `A3`/`A4`
+
+Clock sync on connect (`SET_TIME_ZONE` → `SYNC_TIME` → `START_SYNC_TIME`)
+is confirmed: the panel shows the right local time (America/Chicago). Each
+step is acked with `A1 <cmd> 01`. The handshake-1 reply's `p[5]` changes per
+connection (`04`, `00`, `05` seen).
+
+Unknown: right after the time sync, the panel sent `a9 01 04 01 b3 78`
+(head `A9`, cmd `01`, payload `01`) once. Not yet traced.
+
+---
+
+## 8. Firmware and resource ("material") updates
+
+The app looks for updates with `POST https://pixeljoyapi.smartthingsapp.com/public/app/ota/getOTA`.
+The body is JSON; form encoding returns `code 1017`. Fields:
+`{"otaClass": N, "otaDevice": "<deviceMoldPid, e.g. P0AF>", "otaNumber": "<current version>"}`
+(`DeviceRequest.checkFirmwareVersion`). `otaClass` 1 = firmware, 2 = material
+(resource pack), 3 = communication version. The response's `otaSrc` points at an
+S3 `.bin`, and `otaMD5` is that file's MD5.
+
+On 2026-11-12, for P0AF with `otaNumber` 1.0.0:
+
+| Class | Latest | Size | MD5 | Contents |
+|---|---|---|---|---|
+| 1 firmware | 1.9.6 (panel updated from 1.8.5 to 1.9.6 via the vendor app on 2026-11-13) | 302 KB | `e5731d33…` | JieLi ENC with the fixed key `0xB107`; decrypt with `tools/jl_fw_decrypt.py` |
+| 2 material | 1.2.1 | 822 KB | `2cb29106…` | plain container of 73 GIF89a files, see below |
+| 3 comms | none | – | – | `updateEnable` 2 |
+
+The files are kept in `re/firmware/` (git-ignored). Nothing has been flashed.
+
+**Material pack layout (partly decoded):** header `6c 69 62 01 02 01 00 "C4x2"…`, then a
+`gspl` block, then entries `"im" u32 offset u16 length` that each point at a GIF. Contents:
+
+* 34 GIFs at 32×16:
+  * the PixelJoy boot logo
+  * the 10 clock-style animations: art on the bottom rows, black space at the top where the firmware draws the digits
+  * car-window presets: `<<<LEFT`, `RIGHT>>>`, hazard triangles, "BABY IN CAR", "TURN OFF YOU…", eyes, fire, and others
+* 39 GIFs at 96×16: colour gradients and stripes. These are probably the `SHOW_TEXT` rainbow (tag `01`) schemes, used as a texture behind the glyphs (unverified).
+
+So the clock animations are swappable GIFs, but the only way to change them is a
+material OTA. That needs the rest of the container format (checksums?) and the BLE OTA
+transfer. A bad flash may brick the panel.
+
+**Firmware encryption:** JieLi's ENC stream cipher. A CRC16-CCITT (0x1021) shift register
+is XORed onto the data, low byte first, and reset every 32 bytes to `0xB107 ^ (offset >> 2)`.
+The key was recovered from keystream over the flash padding: two blocks at `0x498c0` and
+`0x49900` gave the same base. Decrypted, the image has a JieLi file table:
+`app_area_head`, `app.bin` (0x120, 0x497c4 bytes), `cfg_tool.bin`, `VM`, `PRCT`, `BTIF`.
+`app.bin` is plain code with no second layer. It contains `CCHIP`, `P0AF_V%s`, the
+`AC637N_MX(BLE)` SDK name and a GIF/PNG decoder. The cipher is from
+[kagaimiq's JieLi notes](https://kagaimiq.github.io/jielie/misc/cipher.html).
+
+**Disassembly:** [FIRMWARE.md](FIRMWARE.md) covers the pi32v2 toolchain and the load address
+(`0x1E00120`). It also maps the BLE receive path and command dispatcher (cmd byte → handler → payload →
+reply), and answers the clock, partition, drawing-board, `A9` and value-range questions, all from the
+1.9.6 code.

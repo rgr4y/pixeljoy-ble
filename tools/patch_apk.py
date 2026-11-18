@@ -24,7 +24,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import urllib.request
+import zipfile
 from pathlib import Path
 
 CACHE = Path(os.environ.get("PIXELJOY_PATCH_CACHE", Path.home() / ".cache" / "pixeljoy-patch"))
@@ -107,6 +109,30 @@ def strip_internet(manifest: Path) -> None:
     manifest.write_text(new, encoding="utf-8")
 
 
+def restore_entry_names(orig: Path, built: Path) -> None:
+    """Java on macOS lists files in NFC, so apktool renames NFD entries (e.g. the
+    Korean font asset) and the app's createFromAsset() lookup fails. Put the
+    vendor's exact names back."""
+    def raw(i: zipfile.ZipInfo) -> str:
+        return i.filename if i.flag_bits & 0x800 else i.filename.encode("cp437").decode("utf-8")
+    want = {unicodedata.normalize("NFC", n): n for n in map(raw, zipfile.ZipFile(orig).infolist())}
+    src = zipfile.ZipFile(built)
+    renames = {i.filename: want[i.filename] for i in src.infolist()
+               if i.filename in want and want[i.filename] != i.filename}
+    if not renames:
+        return
+    tmp = built.with_suffix(".tmp")
+    with zipfile.ZipFile(tmp, "w") as dst:
+        for i in src.infolist():
+            data = src.read(i)
+            i.filename = renames.get(i.filename, i.filename)
+            dst.writestr(i, data, compress_type=i.compress_type)
+    src.close()
+    tmp.replace(built)
+    for old, new in renames.items():
+        print(f"[+] restored entry name {new!r} (apktool had {old!r})")
+
+
 def ensure_keystore(ks: Path, alias: str, password: str) -> None:
     if ks.exists():
         return
@@ -146,6 +172,7 @@ def main() -> None:
             print("[+] removed android.permission.INTERNET")
         unsigned = work / "unsigned.apk"
         run("java", "-jar", str(apktool), "b", "-o", str(unsigned), str(dec))
+        restore_entry_names(a.apk, unsigned)
         a.keystore.parent.mkdir(parents=True, exist_ok=True)
         ensure_keystore(a.keystore, a.alias, a.password)
         signed_dir = work / "signed"

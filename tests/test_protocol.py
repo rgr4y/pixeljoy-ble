@@ -221,3 +221,30 @@ def test_time_zone_southern_hemisphere():
 
 def test_start_sync_time_frame():
     assert P.start_sync_time()[:4] == bytes([0xA0, 0x4A, 0x04, 0x01])
+
+
+def test_show_clock_payload():
+    # Confirmed on hardware: `raw 0d 02 01 00 ff ff ff` shows the live 24 h time.
+    f = P.show_clock(2, h24=True, date=False, color=(255, 255, 255))
+    assert f[:3] == bytes([0xA0, 0x0D, 0x09]) and f[3:-2] == bytes([2, 1, 0, 255, 255, 255])
+    for bad in (-1, 10):     # style 10 corrupts panel RAM (docs/FIRMWARE.md §5a)
+        with pytest.raises(ValueError):
+            P.show_clock(bad)
+
+
+def test_parse_remote_advert():
+    # captured 2026-11-13 from the panel's LZ remote (re/captures/remote_20261113_013847.btsnoop)
+    mfr = {0x02CC: bytes.fromhex("2e6655050000e868")}
+    p = P.parse_remote_advert("LZ", mfr, "11:22:33:44:55:66")
+    assert p == P.RemotePress(remote_id="66554433", seq=0x2E, key=0x05) and p.action == "flip"
+    assert P.parse_remote_advert("P0AF_A1B2", mfr, "11:22:33:44:55:66") is None
+    assert P.parse_remote_advert("LZ", {0x004C: b"\x00" * 8}, "11:22:33:44:55:66") is None
+    assert P.RemotePress("x", 0, 0x7F).action == "key_7f"
+
+
+def test_carousel_list_roundtrip():
+    assert P.parse_carousel_list(b"start\x00") == "start" and P.parse_carousel_list(b"end\x00") == "end"
+    items = [P.CarouselItem("dyn123456", 3, 1), P.CarouselItem("txt654321", 1, 2)]
+    payload = P.play_carousel_payload(items)
+    assert payload == b"\x09dyn123456\x03\x01\x09txt654321\x01\x02"
+    assert P.parse_carousel_list(payload) == items
