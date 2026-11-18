@@ -3,7 +3,7 @@
 ## Install
 
 ```bash
-pipx install git+https://github.com/rgr4y/pixeljoy-ble.git   # or `pipx install .` from a clone
+pipx install pixeljoy-ble        # or `pipx install .` from a clone
 pixeljoy --help                 # same as: python -m pixeljoy --help
 ```
 

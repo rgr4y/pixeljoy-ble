@@ -31,25 +31,21 @@ files and animations as GIFs.
 
 ## Install
 
-Not on PyPI. Install from GitHub or a clone. Python 3.10+.
+On PyPI as [`pixeljoy-ble`](https://pypi.org/project/pixeljoy-ble/). Python 3.10+.
 
 **CLI, isolated (pipx):**
 
 ```bash
-pipx install git+https://github.com/rgr4y/pixeljoy-ble.git
+pipx install pixeljoy-ble
 pixeljoy --help
 ```
-
-From a clone: `pipx install .` (add `--force` to upgrade in place).
 
 **Library, into your own project or venv:**
 
 ```bash
-pip install git+https://github.com/rgr4y/pixeljoy-ble.git
+pip install pixeljoy-ble
 ```
 
-Or pin it in your `requirements.txt` as
-`pixeljoy-ble @ git+https://github.com/rgr4y/pixeljoy-ble.git@<tag-or-sha>`.
 The import name is `pixeljoy`. See the Python API in [`docs/USAGE.md`](docs/USAGE.md#python-api).
 
 **Development:**
