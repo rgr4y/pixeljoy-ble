@@ -145,3 +145,19 @@
 - Local branches `main` and `claude/practical-babbage-1sqw9e` still hold pre-rewrite commits; delete or reset them.
 - No LICENSE file. Pick one before going public.
 - Commit author email is in every commit; rewrite with `--mailmap` if it should not be public.
+
+## 2026-11-18 — HA pairing messages, PyPI publish workflow
+
+**Outcome**
+- `ha-pairing`: the manual "Add" flow now says why the list is empty: all panels already configured (`all_configured`), seen only by passive scanners (`no_connectable`), or nothing seen (`no_devices_found`, with a hint to close the phone app).
+- `pypi-publish`: `.github/workflows/publish.yml` builds, tests and publishes on `v*` tags via trusted publishing (environment `pypi`).
+
+**Root cause** (pairing): the panel was already set up by Bluetooth auto-discovery. The user step drops configured addresses and then reported "No PixelJoy panels in range". The advert itself (name + `c0af` UUID) was fine, and a connectable proxy saw it.
+
+**Verification**
+- `pytest tests_ha tests`: 36 passed (HA 2026.2.3 harness). New user-step tests fail on the old config flow (2 of 4).
+- `actionlint` clean on the workflow; it has not run on GitHub yet.
+- Not deployed to HA.
+
+**Follow-up**
+- `tests_ha` also needs HA's bluetooth/usb component requirements installed; the README line alone is not enough.
