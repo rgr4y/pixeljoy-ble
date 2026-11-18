@@ -29,7 +29,7 @@ jobs:
           bad = {k: v for k, v in got.items() if v != tag}
           sys.exit(f"tag v{tag} does not match: {bad}" if bad else 0)
       - run: pip install build pytest -r requirements.txt
-      - run: pytest -q tests
+      - run: python -m pytest -q tests
       - run: python -m build
       - uses: actions/upload-artifact@v7
         with:
