@@ -1,9 +1,13 @@
 # pixeljoy-ble
 
+<img src="docs/img/panel.png" alt="PixelJoy flexible LED panel with the PixelJoy app and remote" width="420">
+
+*The kind of panel this targets ([example listing](https://www.aliexpress.us/item/3256812441943754.html); vendor product photo).*
+
 Open protocol notes and a Python client for the **PixelJoy** flexible
 Bluetooth LED matrix panels. These are the cheap "LED MATRIX PANEL" units
 sold for car windows and shop signs, controlled by the *PixelJoy* app
-(Shenzhen Wanshun Zhilian Technology) and a small IR remote. They are built
+(Shenzhen Wanshun Zhilian Technology) and a small 2.4 GHz remote (BLE adverts, not IR). They are built
 on a JieLi AC695x/AC6951C BLE SoC.
 
 **Status: protocol extracted from the Android app by static analysis and
