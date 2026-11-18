@@ -1,0 +1,41 @@
+# Publish to PyPI via trusted publishing (OIDC, no token).
+# PyPI publisher: repo rgr4y/pixeljoy-ble, workflow publish.yml, environment pypi.
+# Release: bump version in pyproject.toml, then `git tag v0.1.0 && git push origin v0.1.0`.
+name: publish
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Tag must match pyproject version
+        run: |
+          v=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != pyproject v$v"; exit 1; }
+      - run: pip install build pytest -r requirements.txt
+      - run: pytest -q tests
+      - run: python -m build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
