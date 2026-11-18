@@ -6,18 +6,33 @@ from PyPI (`pixeljoy-ble`, pinned in manifest.json).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from homeassistant.components.bluetooth import async_rediscover_address
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS, CONF_MODEL, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 
+from .const import CLOCK_PREVIEW_URL, DOMAIN
 from .panel import PixelJoyPanel
 from pixeljoy import protocol as P
 
 PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.LIGHT]
 
 PixelJoyConfigEntry = ConfigEntry[PixelJoyPanel]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CLOCK_PREVIEW_URL, str(Path(__file__).parent / "clock"))]
+    )
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: PixelJoyConfigEntry) -> bool:

@@ -20,6 +20,23 @@
       "no_connectable": "A PixelJoy panel is in range, but only passive Bluetooth scanners see it. Setup needs a connectable adapter or an ESPHome Bluetooth proxy in active mode near the panel."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Clock button",
+        "description": "What the **Clock** button shows. Previews from the PixelJoy app:\n\n**1** ![Style 1](/pixeljoy_static/clock/1.gif) **2** ![Style 2](/pixeljoy_static/clock/2.gif) **3** ![Style 3](/pixeljoy_static/clock/3.gif) **4** ![Style 4](/pixeljoy_static/clock/4.gif) **5** ![Style 5](/pixeljoy_static/clock/5.gif)\n\n**6** ![Style 6](/pixeljoy_static/clock/6.gif) **7** ![Style 7](/pixeljoy_static/clock/7.gif) **8** ![Style 8](/pixeljoy_static/clock/8.gif) **9** ![Style 9](/pixeljoy_static/clock/9.gif) **10** ![Style 10](/pixeljoy_static/clock/10.gif)",
+        "data": {
+          "style": "Style",
+          "hour_24": "24-hour",
+          "show_date": "Show date",
+          "color": "Colour"
+        },
+        "data_description": {
+          "show_date": "Alternates with the date for about 5 s every 10-15 s."
+        }
+      }
+    }
+  },
   "entity": {
     "button": {
       "clock": {

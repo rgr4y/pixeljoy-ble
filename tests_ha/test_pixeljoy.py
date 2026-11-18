@@ -138,7 +138,7 @@ async def test_remote_press_fires_event_once_per_seq(hass, panel_entry):
 
 async def test_buttons(hass, panel_entry, tmp_path):
     await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_clock"}, blocking=True)
-    panel_entry.show_clock.assert_awaited_with(0)
+    panel_entry.show_clock.assert_awaited_with(0, True, False, (255, 255, 255))
     await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_carousel"}, blocking=True)
     panel_entry.resume_carousel.assert_awaited_once()
 
@@ -151,3 +151,27 @@ async def test_buttons(hass, panel_entry, tmp_path):
     hass.config.config_dir = str(tmp_path)
     await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_sign_warning"}, blocking=True)
     panel_entry.show_gif.assert_awaited_with(b"GIF89a-warn", 600)
+
+
+async def test_clock_button_uses_options(hass, panel_entry):
+    await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_clock"}, blocking=True)
+    panel_entry.show_clock.assert_awaited_with(0, True, False, (255, 255, 255))  # defaults: style 1
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == "form" and result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"style": "3", "hour_24": False, "show_date": True, "color": [255, 136, 0]}
+    )
+    assert result["type"] == "create_entry"
+    await hass.async_block_till_done()
+
+    await hass.services.async_call("button", "press", {"entity_id": "button.p0af_a1b2_clock"}, blocking=True)
+    panel_entry.show_clock.assert_awaited_with(2, False, True, (255, 136, 0))
+
+
+async def test_clock_previews_are_served(hass, hass_client, panel_entry):
+    client = await hass_client()
+    for n in (1, 10):
+        resp = await client.get(f"/pixeljoy_static/clock/{n}.gif")
+        assert resp.status == 200 and (await resp.read())[:6] == b"GIF89a"

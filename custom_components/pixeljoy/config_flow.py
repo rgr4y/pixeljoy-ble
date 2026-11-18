@@ -6,10 +6,18 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak, async_discovered_service_info
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_ADDRESS, CONF_MODEL
+from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    ColorRGBSelector,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
-from .const import DOMAIN
+from .const import CLOCK_DEFAULTS, CONF_CLOCK_24H, CONF_CLOCK_COLOR, CONF_CLOCK_DATE, CONF_CLOCK_STYLE, DOMAIN
 from pixeljoy import protocol as P
 
 
@@ -21,6 +29,11 @@ class PixelJoyConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for PixelJoy."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return PixelJoyOptionsFlow()
 
     def __init__(self) -> None:
         self._discovery: BluetoothServiceInfoBleak | None = None
@@ -76,3 +89,22 @@ class PixelJoyConfigFlow(ConfigFlow, domain=DOMAIN):
                 {vol.Required(CONF_ADDRESS): vol.In({a: f"{i.name} ({a})" for a, i in self._found.items()})}
             ),
         )
+
+
+class PixelJoyOptionsFlow(OptionsFlow):
+    """What the Clock button shows. The description renders the ten style previews."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        o = {**CLOCK_DEFAULTS, **self.config_entry.options}
+        styles = [str(n) for n in range(1, 11)]
+        schema = vol.Schema({
+            vol.Required(CONF_CLOCK_STYLE, default=o[CONF_CLOCK_STYLE]): SelectSelector(
+                SelectSelectorConfig(options=styles, mode=SelectSelectorMode.DROPDOWN)
+            ),
+            vol.Required(CONF_CLOCK_24H, default=o[CONF_CLOCK_24H]): BooleanSelector(),
+            vol.Required(CONF_CLOCK_DATE, default=o[CONF_CLOCK_DATE]): BooleanSelector(),
+            vol.Required(CONF_CLOCK_COLOR, default=o[CONF_CLOCK_COLOR]): ColorRGBSelector(),
+        })
+        return self.async_show_form(step_id="init", data_schema=schema)
