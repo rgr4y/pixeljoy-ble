@@ -123,3 +123,25 @@
 - Deploy to HA (<ha-host>) and test against the panel.
 - `custom_components/pixeljoy/pixeljoy` is a symlink: fine for an rsync `-L` install, but it breaks a HACS install.
 - Check on hardware whether one press sends several seqs. If it does, remote events need a time debounce.
+
+## 2026-11-18 — Packaging for pipx/pip, history scrub
+
+**Outcome**
+- `requirements.txt` is the runtime dependency source (`bleak>=0.22`, `Pillow>=10`); `pyproject.toml` reads it via `[tool.setuptools.dynamic]`.
+- Pillow moved from the `render` extra to core, so a plain `pipx install` can run `text`/`image`/`gif`. `render` extra removed.
+- Added `readme` and `[project.urls]` metadata. README has a new Install section (pipx, pip as library, dev); quick start uses the `pixeljoy` command. `docs/USAGE.md` install points at pipx.
+- Git history rewritten with `git filter-repo --replace-text` and force-pushed (`main`, `ha-integration`):
+  HA host IP → `<ha-host>`, capture hostname → "a Linux host", panel name suffix `B671` → `A1B2`,
+  remote MAC `…:1B:96` → `…:55:66` (and derived bytes `96 1B`/`961b4433` → `66 55`/`66554433`). Commit messages too.
+
+**Verification**
+- `python -m build`: wheel has `pixeljoy/*` + `devices.json`, no tests/HA component; sdist has `requirements.txt` and `README.md`.
+- Wheel installed with pipx into an isolated `PIPX_HOME`; `pixeljoy --help`, `load_models()` (40) and `render_glyphs` work from outside the repo.
+- `pytest tests`: 26 passed on the rewritten tip. `tests_ha` not run.
+- Full-history rescan after rewrite: no IPs, no hostnames, only placeholder MACs (`11:22:33:44:55:66`, `AA:BB:CC:DD:EE:01`).
+
+**Follow-up**
+- Repo is private again. Old SHAs stay fetchable on GitHub by hash (PR #1 history, caches) until GitHub support purges them or the repo is recreated.
+- Local branches `main` and `claude/practical-babbage-1sqw9e` still hold pre-rewrite commits; delete or reset them.
+- No LICENSE file. Pick one before going public.
+- Commit author email is in every commit; rewrite with `--mailmap` if it should not be public.
