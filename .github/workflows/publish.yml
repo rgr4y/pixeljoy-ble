@@ -1,6 +1,8 @@
-# Publish to PyPI via trusted publishing (OIDC, no token).
+# Publish to PyPI via trusted publishing (OIDC, no token), then create the GitHub release
+# the HA Marketplace reads its version from.
 # PyPI publisher: repo rgr4y/pixeljoy-ble, workflow publish.yml, environment pypi.
-# Release: bump version in pyproject.toml, then `git tag v0.1.0 && git push origin v0.1.0`.
+# Release: set the same version in pyproject.toml, manifest.json "version" and its
+# pixeljoy-ble== pin, then `git tag v0.1.0 && git push origin v0.1.0`.
 name: publish
 
 on:
@@ -15,10 +17,17 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Tag must match pyproject version
+      - name: Tag must match pyproject, manifest version and manifest pin
+        shell: python
         run: |
-          v=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
-          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != pyproject v$v"; exit 1; }
+          import json, os, sys, tomllib
+          tag = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          py = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
+          m = json.load(open("custom_components/pixeljoy/manifest.json"))
+          pin = next(r.split("==")[1] for r in m["requirements"] if r.startswith("pixeljoy-ble=="))
+          got = {"pyproject": py, "manifest version": m["version"], "manifest pin": pin}
+          bad = {k: v for k, v in got.items() if v != tag}
+          sys.exit(f"tag v{tag} does not match: {bad}" if bad else 0)
       - run: pip install build pytest -r requirements.txt
       - run: pytest -q tests
       - run: python -m build
@@ -39,3 +48,17 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

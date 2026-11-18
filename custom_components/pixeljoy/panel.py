@@ -13,8 +13,8 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import IDLE_DISCONNECT_S
-from .pixeljoy import protocol as P
-from .pixeljoy.client import PixelJoy
+from pixeljoy import protocol as P
+from pixeljoy.client import PixelJoy
 
 _LOGGER = logging.getLogger(__name__)
 T = TypeVar("T")

@@ -174,7 +174,8 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/rgr4y/pixeljoy-ble/issues",
   "requirements": [
-    "bleak-retry-connector>=3.5.0"
+    "bleak-retry-connector>=3.5.0",
+    "pixeljoy-ble==0.1.0"
   ],
   "version": "0.1.0"
 }
