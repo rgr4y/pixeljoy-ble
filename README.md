@@ -124,3 +124,7 @@ Tests run against a real HA core with BLE mocked:
 | `tests/` | unit tests for the encoders (`pytest`) |
 | `custom_components/pixeljoy/` | Home Assistant integration (`pixeljoy/` inside it is a symlink to the library) |
 | `tests_ha/` | HA integration tests (`pytest-homeassistant-custom-component`) |
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).

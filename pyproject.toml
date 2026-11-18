@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,7 @@ name = "pixeljoy-ble"
 version = "0.1.0"
 description = "Reverse-engineered BLE protocol + client for PixelJoy LED matrix panels"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 dynamic = ["dependencies"]
 
