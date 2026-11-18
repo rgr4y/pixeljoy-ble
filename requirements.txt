@@ -1,0 +1,3 @@
+# Runtime dependencies. pyproject.toml reads this file, so it is the single source.
+bleak>=0.22
+Pillow>=10

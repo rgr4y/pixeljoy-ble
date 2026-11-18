@@ -3,10 +3,11 @@
 ## Install
 
 ```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -e '.[render]'      # Pillow is needed for text and image
+pipx install git+https://github.com/rgr4y/pixeljoy-ble.git   # or `pipx install .` from a clone
 pixeljoy --help                 # same as: python -m pixeljoy --help
 ```
+
+Library or development installs: see the [README](../README.md#install).
 
 **macOS:** the first BLE scan asks for Bluetooth permission for the app that
 runs Python (Terminal, iTerm, VS Code, …). If you denied it, re-enable it in

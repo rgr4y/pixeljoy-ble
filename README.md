@@ -25,17 +25,50 @@ its own scheme:
 The phone renders text into 1-bpp glyphs. Images go up as ordinary PNG
 files and animations as GIFs.
 
+## Install
+
+Not on PyPI. Install from GitHub or a clone. Python 3.10+.
+
+**CLI, isolated (pipx):**
+
+```bash
+pipx install git+https://github.com/rgr4y/pixeljoy-ble.git
+pixeljoy --help
+```
+
+From a clone: `pipx install .` (add `--force` to upgrade in place).
+
+**Library, into your own project or venv:**
+
+```bash
+pip install git+https://github.com/rgr4y/pixeljoy-ble.git
+```
+
+Or pin it in your `requirements.txt` as
+`pixeljoy-ble @ git+https://github.com/rgr4y/pixeljoy-ble.git@<tag-or-sha>`.
+The import name is `pixeljoy`. See the Python API in [`docs/USAGE.md`](docs/USAGE.md#python-api).
+
+**Development:**
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt   # runtime deps only: bleak, Pillow
+pip install -e '.[test]'          # editable install + pytest
+pytest tests
+```
+
+`requirements.txt` is the single source of runtime dependencies; `pyproject.toml` reads it.
+
 ## Quick start
 
 ```bash
-pip install -e '.[render]'
-python -m pixeljoy scan            # find the panel, prints name/UUIDs/model
-python -m pixeljoy -v info         # handshake + READ_PROPERTY, logs every frame
-python -m pixeljoy power off
-python -m pixeljoy brightness 50
-python -m pixeljoy -v text "HELLO" --color 00ff88
-python -m pixeljoy -v image cat.png   # resized to the panel, uploaded as PNG
-python -m pixeljoy raw 41 01          # send one raw A0 frame, print replies
+pixeljoy scan            # find the panel, prints name/UUIDs/model
+pixeljoy -v info         # handshake + READ_PROPERTY, logs every frame
+pixeljoy power off
+pixeljoy brightness 50
+pixeljoy -v text "HELLO" --color 00ff88
+pixeljoy -v image cat.png   # resized to the panel, uploaded as PNG
+pixeljoy raw 41 01          # send one raw A0 frame, print replies
 ```
 
 Full CLI reference, exit codes and troubleshooting: [`docs/USAGE.md`](docs/USAGE.md).
