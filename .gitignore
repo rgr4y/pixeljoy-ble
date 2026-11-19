@@ -5,3 +5,4 @@ __pycache__/
 # APK + decompiled vendor sources (see tools/fetch_apk.sh) - do not commit
 re/
 *.apk
+build
